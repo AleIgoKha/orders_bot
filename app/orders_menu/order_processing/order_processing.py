@@ -26,6 +26,7 @@ def group_orders_items(orders_items):
                                         'order_id': order.order_id,
                                         'order_completed': order.order_completed,
                                         'order_note': order.order_note,
+                                        'order_disc': order.order_disc,
                                         f'item_{item.item_id}': {
                                             'item_id': item.item_id,
                                             'item_name': item.item_name,
@@ -41,7 +42,8 @@ def group_orders_items(orders_items):
                                         'client_name': order.client_name,
                                         'order_id': order.order_id,
                                         'order_completed': order.order_completed,
-                                        'order_note': order.order_note})
+                                        'order_note': order.order_note,
+                                        'order_disc': order.order_disc})
         else:
             orders_items_data[-1][f'item_{item.item_id}'] = {
                                     'item_id': item.item_id,
@@ -62,6 +64,7 @@ def order_text(order_items_data):
             f'👤 Клиент - <b>{order_items_data['client_name']}</b>\n\n'
     
     items_list = [item for item in order_items_data.keys() if item.startswith('item_')]
+    total_price = 0
     
     if items_list: # Проверяем пуст ли заказ
         for item in items_list:
@@ -80,18 +83,33 @@ def order_text(order_items_data):
             text += f'🧀 <b>{item_name}{item_vacc}</b>\n'
             
             if item_unit == 'кг': # Переводим килограмы в граммы
-                item_price = round(item_qty_fact * float(item_price), 2)
                 text += f'Заказано - <b>{int(item_qty * 1000)} {item_unit[-1]}</b>\n' \
                         f'Взвешено - <b>{int(item_qty_fact * 1000)} {item_unit[-1]}</b>\n'
             else:
-                item_price = round(item_qty * float(item_price), 2)
+                item_qty_fact = item_qty
                 text += f'Заказано - <b>{int(item_qty)} {item_unit}</b>\n'
-                
+            # Рассчитываем стоимость всключая вакуум
+            
+            if item_vacc:
+                if item_qty_fact < 200:
+                    vacc_price = 5
+                elif 200 <= item_qty_fact < 300:
+                    vacc_price = 6
+                elif 300 <= item_qty_fact:
+                    vacc_price = (item_qty_fact * 2) // 100
+            else:
+                vacc_price = 0
+
+            item_price = round(item_qty_fact * float(item_price), 2) + vacc_price
+            total_price += item_price
+            
             text += f'Стоимость - <b>{item_price} р</b>\n\n'
                 
-            
     else:
         text += '<b>Заказ пуст 🤷‍♂️</b>\n\n'
+    
+    order_disc = order_items_data['order_disc']
+    text += f'<b>🧾 К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100))} р</b>\n\n'
     
     order_note = order_items_data['order_note']
     if order_note:
@@ -320,7 +338,6 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
 
 
 ##################
-# 1. Включить скидку и вакуум в цену
 # 2. Сделать форму для отправки сообщений
 # 3. Сделать функции для удаления сессии (и, возможно, для изменения ее данных)
 # 4. Сделать функцию для изменения товаров
