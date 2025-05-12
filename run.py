@@ -23,8 +23,8 @@ from app.database.models import async_main
 from app.middlewares import MessagesRemover
 
 async def main():
-    redis = await aioredis.from_url(f'redis://localhost:6379/0')
     load_dotenv()
+    redis = await aioredis.from_url(os.getenv(f'REDIS_URL'))
     bot = Bot(token=os.getenv('TG_TOKEN'))
     dp = Dispatcher(storage=RedisStorage(redis))
     dp.message.middleware(MessagesRemover())

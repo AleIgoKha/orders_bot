@@ -1,6 +1,4 @@
-dct = {'a': 123}
+from dotenv import load_dotenv
+from pathlib import Path
 
-list = [i for i in range(5)]
-
-for i, j, in zip(list, dct):
-    print(i, j)
+print(load_dotenv(dotenv_path=Path(__file__).parent / ".env")) 

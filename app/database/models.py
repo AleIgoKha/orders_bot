@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import String, Numeric, DateTime, ForeignKey, Float, Boolean, Integer
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -5,7 +7,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from decimal import Decimal
 from datetime import datetime
 
-engine = create_async_engine(url='sqlite+aiosqlite:///db.sqlite3', echo=True)
+
+load_dotenv()
+engine = create_async_engine(url=os.getenv('DB_URL'), echo=True)
 
 async_session = async_sessionmaker(engine)
 
