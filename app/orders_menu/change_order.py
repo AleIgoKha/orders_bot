@@ -9,87 +9,9 @@ from app.states import Item, Order
 from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data
 from app.orders_menu.completed_orders.completed_orders import completed_orders_list_handler
 from app.orders_menu.order_processing.order_processing import orders_processing_list_handler
-
+from app.com_func import group_orders_items, order_text
 
 change_order = Router()
-
-
-# Функция группирует данные полученные из запроса
-def group_orders_items(orders_items):
-    order_id = 0
-    orders_items_data = []
-    for order, item in orders_items:
-        if order_id != order.order_id:
-            order_id = order.order_id
-            if item != None:
-                orders_items_data.append({'order_number': order.order_number,
-                                        'client_name': order.client_name,
-                                        'order_id': order.order_id,
-                                        'order_completed': order.order_completed,
-                                        'order_note': order.order_note,
-                                        f'item_{item.item_id}': {
-                                            'item_id': item.item_id,
-                                            'item_name': item.item_name,
-                                            'item_unit': item.item_unit,
-                                            'item_price': item.item_price,
-                                            'item_qty': item.item_qty,
-                                            'item_qty_fact': item.item_qty_fact,
-                                            'item_disc': item.item_disc,
-                                            'item_vacc': item.item_vacc
-                                        }})
-            else:
-                orders_items_data.append({'order_number': order.order_number,
-                                        'client_name': order.client_name,
-                                        'order_id': order.order_id,
-                                        'order_completed': order.order_completed,
-                                        'order_note': order.order_note})
-        else:
-            orders_items_data[-1][f'item_{item.item_id}'] = {
-                                    'item_id': item.item_id,
-                                    'item_name': item.item_name,
-                                    'item_unit': item.item_unit,
-                                    'item_price': item.item_price,
-                                    'item_qty': item.item_qty,
-                                    'item_qty_fact': item.item_qty_fact,
-                                    'item_disc': item.item_disc,
-                                    'item_vacc': item.item_vacc
-                                }
-    return orders_items_data
-
-
-# формирует сообщение для меню заказа и изменения заказа
-def order_text(order_items_data):
-    text = f'📋 <b>ЗАКАЗ №{order_items_data['order_number']}</b>\n\n' \
-            f'👤 Клиент - <b>{order_items_data['client_name']}</b>\n\n'
-    
-    items_list = [item for item in order_items_data.keys() if item.startswith('item_')]
-    
-    if items_list: # Проверяем пуст ли заказ
-        for item in items_list:
-            item_name = order_items_data[item]['item_name']
-            item_price = order_items_data[item]['item_price']
-            item_qty = order_items_data[item]['item_qty']
-            item_unit = order_items_data[item]['item_unit']
-            item_qty_fact = order_items_data[item]['item_qty_fact']
-            
-            item_unit_amend = item_unit
-            if item_unit_amend == 'кг': # Переводим килограмы в граммы
-                item_unit_amend = 'г'
-                item_qty = int(item_qty * 1000)
-                item_qty_fact = int(item_qty_fact * 1000)
-                item_price_fact = round(order_items_data[item]['item_qty_fact'] * float(item_price), 2)
-                text += f'🧀 <b>{item_name}</b>\nЗаказано - <b>{item_qty} {item_unit_amend}</b>\nВзвешено - <b>{item_qty_fact} {item_unit_amend}</b>\nСтоимость - <b>{item_price_fact} р</b>\n\n'
-            elif item_unit_amend == 'шт.':
-                item_price_fact = round(item_qty * float(item_price), 2)
-                item_qty = int(order_items_data[item]['item_qty'])
-                text += f'🧀 <b>{item_name}</b>\nЗаказано - <b>{item_qty} {item_unit_amend}</b>\nСтоимость - <b>{item_price_fact} р</b>\n\n'
-    else:
-        text += '<b>Заказ пуст 🤷‍♂️</b>\n\n'
-    
-    order_note = order_items_data['order_note']
-    if order_note:
-        text += f'<b>📝 Комментарий к заказу</b>\n{order_note}'  
-    return text
 
 
 # Переходим в меню изменения данных заказа либо напрямую из меню с обрабатываемыми/готовыми заказами либо после изменения параметра
