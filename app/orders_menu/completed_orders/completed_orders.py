@@ -28,13 +28,13 @@ def order_message(order_items_data):
                     
             
             if item_vacc:
-                item_vacc = ' (вак. уп.) '
+                item_vacc = ' (вак. уп.)'
                 if item_qty_fact < 200:
                     vacc_price = 5
                 elif 200 <= item_qty_fact < 300:
                     vacc_price = 6
                 elif 300 <= item_qty_fact:
-                    vacc_price = (item_qty_fact * 2) // 100
+                    vacc_price = (item_qty_fact * 2) / 100
             else:
                 item_vacc = ''
                 vacc_price = 0
@@ -43,10 +43,10 @@ def order_message(order_items_data):
             
             if item_unit == 'кг': # Переводим килограмы в граммы
                 item_price = round(item_qty_fact * float(item_price)) + vacc_price
-                text += f'- {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
+                text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
             else:
-                item_price = round(item_qty * float(item_price)) + vacc_price
-                text += f'- {int(item_qty)} {item_unit}\n'
+                item_price = round(item_qty * float(item_price) + vacc_price)
+                text += f' - {int(item_qty)} {item_unit}\n'
             # Рассчитываем стоимость всключая вакуум
             
             total_price += item_price
@@ -109,6 +109,3 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
     # сохраняем данные id последнего сообщения
     await state.update_data(message_id=message.message_id, messages_sent=messages_sent, from_menu='completed_orders')
 
-
-# ######
-# 1. Как было бы удобнее папе идентифицировать клиентов в списке с сообщениями.

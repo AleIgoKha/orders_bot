@@ -1,15 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.database.requests import get_products
-
-# Клавиатура меню сессии
-session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
-    [InlineKeyboardButton(text='⚙ Обработка заказов', callback_data='order_processing')],
-    [InlineKeyboardButton(text='🗂 Готовые заказы', callback_data='completed_orders')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
-])
 
 # Клавиатура кнопка "Обработать" для заказа
 def process_button(order_id):
@@ -21,7 +12,7 @@ def process_button(order_id):
 def last_process_button(order_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='⚙ Обработка', callback_data=f'process_order_{order_id}')],
-        [InlineKeyboardButton(text='❌ Назад в меню', callback_data=f'back_from_order_processing')]
+        [InlineKeyboardButton(text='⬅️ Назад в меню', callback_data=f'back_from_order_processing')]
         ])
     
 
@@ -73,5 +64,5 @@ def choose_item_processing(items_data_list: list, page: int = 1, items_per_page:
 
 # Кнопка для возвращения к списку товаров на обработку
 back_to_order_proccessing_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='process_order')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data='process_order')]
 ])
