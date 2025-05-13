@@ -20,7 +20,7 @@ new_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data=f'confirm_order_cancelation')]
 ])
     
-async def choose_product(page: int = 1, products_per_page: int = 10):
+async def choose_product(page: int = 1, products_per_page: int = 8):
     products = await get_products()
     product_keyboard = InlineKeyboardBuilder()
     
@@ -61,7 +61,7 @@ change_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='back_to_order_creation')]
 ])
 
-async def change_product_keyboard(products: dict, page: int = 1, products_per_page: int = 10):
+async def change_product_keyboard(products: dict, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * products_per_page
@@ -120,7 +120,7 @@ note_removal = InlineKeyboardMarkup(inline_keyboard=[
 
 
 # выбираем продукт для вакуумации
-async def choose_product_vacc(products: dict, from_callback: str, page: int = 1, products_per_page: int = 1):
+async def choose_product_vacc(products: dict, from_callback: str, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * products_per_page
@@ -172,7 +172,7 @@ async def choose_product_vacc(products: dict, from_callback: str, page: int = 1,
     return product_keyboard.as_markup()
 
 
-async def choose_add_disc(products: dict, page: int = 1, products_per_page: int = 10):
+async def choose_add_disc(products: dict, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * products_per_page

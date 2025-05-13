@@ -32,7 +32,7 @@ session_confirmation = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 # Функция для создания клавиатуры-списка сессий с пагинацией
-async def choose_session(page: int = 1, sessions_per_page: int = 5):
+async def choose_session(page: int = 1, sessions_per_page: int = 8):
     sessions = await get_sessions()
     session_keyboard = InlineKeyboardBuilder()
     
@@ -67,10 +67,11 @@ async def choose_session(page: int = 1, sessions_per_page: int = 5):
     return session_keyboard.as_markup()
 
 session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Создать заказ', callback_data='order_creation')],
-    [InlineKeyboardButton(text='Обработка заказов', callback_data='order_processing')],
-    [InlineKeyboardButton(text='Готовые заказы', callback_data='completed_orders')],
-    # [InlineKeyboardButton(text='Загрузить', callback_data='download_orders')],
+    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
+    [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
+    [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
+    [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
+    # [InlineKeyboardButton(text='⬇️ Загрузить', callback_data='download_orders')],
     [session_cancellation_button]
 ])
 
@@ -164,7 +165,7 @@ def choose_change_item_qty(items_data_list: list, page: int = 1, items_per_page:
 
 
 # Меню выбора товара для добавления в существующий заказ
-async def choose_add_item(page: int = 1, products_per_page: int = 2):
+async def choose_add_item(page: int = 1, products_per_page: int = 8):
     products = await get_products()
     product_keyboard = InlineKeyboardBuilder()
     
@@ -274,3 +275,5 @@ async def choose_change_product_vacc(products: dict, from_callback: str, page: i
         product_keyboard.row(*navigation_buttons)
 
     return product_keyboard.as_markup()
+
+

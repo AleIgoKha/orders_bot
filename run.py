@@ -16,6 +16,7 @@ from app.orders_menu.change_order import change_order
 from app.orders_menu.order_creation.order_creation import order_creation
 from app.orders_menu.order_processing.order_processing import order_processing
 from app.orders_menu.completed_orders.completed_orders import completed_orders
+from app.orders_menu.session_stats.session_stats import session_stats
 
 from app.stats_menu.stats_menu import stats_menu
 
@@ -36,6 +37,7 @@ async def main():
                        order_processing,
                        change_order,
                        completed_orders,
+                       session_stats,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

@@ -35,7 +35,7 @@ order_processing_menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 
 
 # Клавиатура для выбора обрабатываемого продукта
-def choose_item_processing(items_data_list: list, page: int = 1, items_per_page: int = 2):
+def choose_item_processing(items_data_list: list, page: int = 1, items_per_page: int = 8):
     item_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * items_per_page
@@ -93,7 +93,7 @@ back_to_change_order_data = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 # Клавиатура для выбора продукта для изменения его данных о заказанном количестве товара
-def choose_change_item_qty(items_data_list: list, page: int = 1, items_per_page: int = 2):
+def choose_change_item_qty(items_data_list: list, page: int = 1, items_per_page: int = 8):
     item_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * items_per_page
@@ -130,7 +130,7 @@ def choose_change_item_qty(items_data_list: list, page: int = 1, items_per_page:
 
 
 # Меню выбора товара для добавления в существующий заказ
-async def choose_add_item(page: int = 1, products_per_page: int = 2):
+async def choose_add_item(page: int = 1, products_per_page: int = 8):
     products = await get_products()
     product_keyboard = InlineKeyboardBuilder()
     

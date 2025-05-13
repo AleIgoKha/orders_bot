@@ -1,6 +1,6 @@
 from app.database.models import async_session, Product, Session, Order, Item
 
-from sqlalchemy import select, update, desc, asc, func, delete
+from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
 from decimal import Decimal
 
 def connection(func):
@@ -154,7 +154,27 @@ async def delete_order(session, order_id):
     await session.commit()
     
     
+# Подсчет статистики по товарам
+@connection
+async def get_session_items_stats(session, session_id):
+    stmt = (
+        select(
+            Item.item_name,
+            Item.item_unit,
+            func.sum(Item.item_qty).label('total_qty'),
+            func.sum(Item.item_qty_fact).label('total_qty_fact'),
+            func.sum(Item.item_price * Item.item_qty).label('est_revenue'),
+            func.sum(Item.item_price * Item.item_qty_fact).label('exp_revenue'),
+            func.sum(cast(Item.item_vacc, Integer)).label('vacc_count')
+        )
+        .select_from(Order)
+        .outerjoin(Item, Order.order_id == Item.order_id)
+        .where(Order.session_id == session_id)
+        .group_by(Item.item_name, Item.item_unit)
+    )
     
+    result = await session.execute(stmt)
+    return result.all()
 
 
 # @connection

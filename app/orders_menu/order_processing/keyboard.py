@@ -1,15 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.database.requests import get_products
-
-# Клавиатура меню сессии
-session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
-    [InlineKeyboardButton(text='⚙ Обработка заказов', callback_data='order_processing')],
-    [InlineKeyboardButton(text='🗂 Готовые заказы', callback_data='completed_orders')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
-])
 
 # Клавиатура кнопка "Обработать" для заказа
 def process_button(order_id):

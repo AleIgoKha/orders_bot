@@ -159,6 +159,7 @@ async def session_menu_handler(callback: CallbackQuery, state: FSMContext):
     
 
 # Возврат в меню сессии
+@orders_menu.callback_query(F.data == 'back_from_order_stats')
 @orders_menu.callback_query(F.data == 'back_from_order_creation')
 @orders_menu.callback_query(F.data == 'back_from_order_processing')
 @orders_menu.callback_query(F.data == 'back_from_order_changing')
@@ -195,11 +196,3 @@ async def back_to_orders_menu_handler(callback: CallbackQuery, state: FSMContext
                                     parse_mode='HTML')
 
 
-
-
-
-###############################################################
-# УЛУЧШЕНИЯ
-# 1. НУЖНА ПРОВЕРКА НА СУЩЕСТВОВАНИЯ ПОДОБНОЙ СЕССИИ (ТО ЖЕ САМОЕ ДЛЯ ПРОДУКТОВ)
-# 2. Все меню возврата переместить сюда
-# 3. Все клавиатура для возвратов связать с клавиатурой для этого файла
