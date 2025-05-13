@@ -3,8 +3,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.requests import get_sessions, get_products
 
-main_menu_button = InlineKeyboardButton(text='🏠 В главное меню', callback_data='main_menu')
+main_menu_button = InlineKeyboardButton(text='⬅️ Назад', callback_data='main_menu')
 
+# Используется как шаблон в этом же файле
 session_cancellation_button = InlineKeyboardButton(text='❌ Отменить', callback_data='orders')
 
 orders_menu = InlineKeyboardMarkup(inline_keyboard=[
@@ -15,20 +16,20 @@ orders_menu = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 session_cancellation = InlineKeyboardMarkup(inline_keyboard=[
-    [session_cancellation_button],
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
 ])
 
 issuing_method = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🤝 Самовывоз', callback_data='Самовывоз')],
     [InlineKeyboardButton(text='🚗 Доставка по городу', callback_data='Доставка по городу')],
     [InlineKeyboardButton(text='🚚 Доставка почтой', callback_data='Доставка почтой')],
-    [session_cancellation_button]
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
 ])
 
 session_confirmation = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='✅ Подтвердить', callback_data='session_confirmation')],
     [InlineKeyboardButton(text='✍🏻 Изменить', callback_data='new_session')],
-    [session_cancellation_button]
+    [InlineKeyboardButton(text='❌ Отменить создание сессии', callback_data='orders')]
 ])
 
 # Функция для создания клавиатуры-списка сессий с пагинацией
@@ -54,7 +55,7 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
             InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"session_page_{page - 1}")
         )
     
-    navigation_buttons.append(session_cancellation_button)
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='orders'))
     
     if end < len(sessions):
         navigation_buttons.append(
@@ -72,7 +73,7 @@ session_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
     [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
     # [InlineKeyboardButton(text='⬇️ Загрузить', callback_data='download_orders')],
-    [session_cancellation_button]
+    [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='orders')]
 ])
 
 
@@ -92,7 +93,7 @@ change_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📉 Изменить размер скидки', callback_data='change_order_disc')],
     [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
     [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='back_process_order_menu')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data='back_process_order_menu')]
 ])
 
 # Клавиатура для управления данными обработанного заказа
@@ -103,7 +104,7 @@ change_completed_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
     [InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')],
     [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='completed_orders')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data='completed_orders')]
 ])
 
 # Меню изменения данных товаров
@@ -114,7 +115,7 @@ change_item_data = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📥 Убрать товары с вак. уп.', callback_data='change_delete_item_vacc')],
     [InlineKeyboardButton(text='📋 Изменить заказанное количество товара', callback_data='change_item_qty')],
     [InlineKeyboardButton(text='⚖ Изменить взвешенное количество товара', callback_data='change_item_qty_fact')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data='change_order_data')]
 ])
 
 

@@ -12,12 +12,11 @@ order_cancelation = InlineKeyboardMarkup(inline_keyboard=[
 new_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🧀 Добавить товар', callback_data='add_product_to_order')],
     [InlineKeyboardButton(text='📤 Добавить вакуумную упаковку', callback_data='add_vacc_to_order')],
-    # [InlineKeyboardButton(text='📉 Применить скидку', callback_data='add_disc_to_order')],
     [InlineKeyboardButton(text='📉 Применить скидку', callback_data='disc_all')],
     [InlineKeyboardButton(text='✍Изменить заказ', callback_data='change_order')],
     [InlineKeyboardButton(text='📝 Комментарий к заказу', callback_data='add_note')],
     [InlineKeyboardButton(text='✅ Сохранить заказ', callback_data='save_order')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data=f'confirm_order_cancelation')]
+    [InlineKeyboardButton(text='❌ Отменить создание заказа', callback_data=f'confirm_order_cancelation')]
 ])
     
 async def choose_product(page: int = 1, products_per_page: int = 8):
@@ -58,7 +57,7 @@ change_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='Изменить имя клиента', callback_data='change_name')],
     [InlineKeyboardButton(text='Изменить количество продукта', callback_data='change_product')],
     [InlineKeyboardButton(text='Удалить вакуумную упаковку', callback_data='delete_vacc')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='back_to_order_creation')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data='back_to_order_creation')]
 ])
 
 async def change_product_keyboard(products: dict, page: int = 1, products_per_page: int = 8):
@@ -101,12 +100,12 @@ async def change_product_keyboard(products: dict, page: int = 1, products_per_pa
 
 order_confirmation = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='✅ Подтвердить', callback_data='confirm_order_creation'),
-     InlineKeyboardButton(text='❌ Отмена', callback_data='back_to_order_creation')]
+     InlineKeyboardButton(text='⬅️ Назад', callback_data='back_to_order_creation')]
 ])
 
-back_to_order_changing = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='❌ Отмена', callback_data='change_order')]])
+back_to_order_changing = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='⬅️ Назад', callback_data='change_order')]])
 
-back_to_order_creation = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='❌ Отмена', callback_data='back_to_order_creation')]])
+back_to_order_creation = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='⬅️ Назад', callback_data='back_to_order_creation')]])
 
 confirm_order_cancelation = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Подтвердить отмену', callback_data='back_from_order_creation'),

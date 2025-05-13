@@ -124,6 +124,12 @@ async def get_order(session, order_id):
     return order_data
 
 @connection
+async def get_orders(session, session_id):
+    order_data = await session.execute(select(Order).where(Order.session_id == session_id))
+    
+    return order_data.all()
+
+@connection
 async def change_item_data(session, item_id, item_data):
     await session.execute(update(Item).where(Item.item_id == item_id).values(item_data))
     await session.commit()
