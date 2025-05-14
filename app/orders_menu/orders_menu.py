@@ -2,7 +2,8 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime
+from datetime import datetime, date
+
 
 import app.orders_menu.keyboard as kb
 from app.states import Session
@@ -18,20 +19,42 @@ async def orders_menu_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # добавление новой сессии
+@orders_menu.callback_query(F.data.startswith('session:month:prev:'))
+@orders_menu.callback_query(F.data.startswith('session:month:next:'))
 @orders_menu.callback_query(F.data == 'new_session')
 async def new_session_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await state.set_state(Session.date)
-    await callback.message.edit_text(text='📅 <b>Введите дату новой сессии в следующем формате:</b>\n<i>ДД-ММ-ГГГГ</i>',
-                                     reply_markup=kb.session_cancellation,
-                                     parse_mode='HTML')
     await state.update_data(message_id=callback.message.message_id, chat_id=callback.message.chat.id)
+    now = datetime.now()
+    year = now.year
+    month = now.month
+    # Переключаем месяца вперед и назад
+    if callback.data.startswith('session:month'):
+        calendar_data = callback.data.split(':')
+        if calendar_data[2] == 'prev':
+            year = int(calendar_data[3])
+            month = int(calendar_data[4]) - 1
+            if month < 1:
+                month = 12
+                year -= 1
+        elif calendar_data[2] == 'next':
+            year = int(calendar_data[3])
+            month = int(calendar_data[4]) + 1
+            if month > 12:
+                month = 1
+                year += 1
+        await callback.message.edit_reply_markup(reply_markup=kb.create_calendar_keyboard(year, month))
+    else:
+        await callback.message.edit_text(text='📅 <b>Выберите дату новой сессии или введите вручную в следующем формате:</b>\n<i>ДД-ММ-ГГГГ</i>',
+                                        reply_markup=kb.create_calendar_keyboard(year, month),
+                                        parse_mode='HTML')
+    await state.set_state(Session.date)
 
 
 # Указание даты
 @orders_menu.message(Session.date_error)
 @orders_menu.message(Session.date)
-async def session_date(message: Message, state: FSMContext):
+async def session_date_state_handler(message: Message, state: FSMContext):
     data = await state.get_data()
     try:
         date_comp = [int(_) for _ in message.text.split('-')]
@@ -59,6 +82,16 @@ async def session_date(message: Message, state: FSMContext):
                                                 parse_mode='HTML')
         return None
 
+
+# Обработка и сохранение даты при нажатии на кнопку
+@orders_menu.callback_query(F.data.startswith('session:date:'))
+async def session_date_callback_handler(callback: CallbackQuery, state: FSMContext):
+    date_data = callback.data.split(':')[-3:]
+    await state.update_data(date=f'{date_data[2]}-{date_data[1]}-{date_data[0]}')
+    await state.set_state(Session.place)
+    await callback.message.edit_text(text='🏙️ <b>Введите название населенного пункта</b>',
+                                    reply_markup=kb.session_cancellation,
+                                    parse_mode='HTML')
 
 # Указание местоположения
 @orders_menu.message(Session.place)
