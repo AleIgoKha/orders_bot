@@ -11,5 +11,5 @@ def change_button(order_id):
 def last_change_button(order_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='✍️ Изменить', callback_data=f'{order_id}_change_order')],
-        [InlineKeyboardButton(text='⬅️ Назад в меню', callback_data=f'back_from_order_changing')]
+        [InlineKeyboardButton(text='⬅️ Назад в меню', callback_data=f'back_from_order_completed')]
         ])
