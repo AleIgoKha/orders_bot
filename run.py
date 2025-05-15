@@ -11,6 +11,7 @@ from app.main_menu import main_menu
 
 from app.products_menu.products_menu import products_menu
 
+from app.orders_menu.order_download.order_download import order_download
 from app.orders_menu.orders_menu import orders_menu
 from app.orders_menu.change_order import change_order
 from app.orders_menu.order_creation.order_creation import order_creation
@@ -38,6 +39,7 @@ async def main():
                        change_order,
                        completed_orders,
                        session_stats,
+                       order_download,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

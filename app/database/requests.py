@@ -96,7 +96,7 @@ async def get_order_id(session, session_id, order_number):
 async def get_orders_items(session, session_id):
     orders_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
                                                             .where(Order.session_id == session_id) \
-                                                            .order_by(desc(Order.order_number)))
+                                                            .order_by(asc(Order.order_number)))
     
     
     return orders_data.all()

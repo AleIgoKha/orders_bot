@@ -192,15 +192,16 @@ async def session_menu_handler(callback: CallbackQuery, state: FSMContext):
     
 
 # Возврат в меню сессии
+@orders_menu.callback_query(F.data == 'back_from_order_download')
 @orders_menu.callback_query(F.data == 'back_from_order_stats')
 @orders_menu.callback_query(F.data == 'back_from_order_creation')
 @orders_menu.callback_query(F.data == 'back_from_order_processing')
-@orders_menu.callback_query(F.data == 'back_from_order_changing')
+@orders_menu.callback_query(F.data == 'back_from_order_completed')
 async def back_to_orders_menu_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     # Удаляем все сообщения из меню со списком заказов
-    if callback.data in ['back_from_order_processing', 'back_from_order_changing']:
+    if callback.data in ['back_from_order_processing', 'back_from_order_completed']:
         for i in range(data['messages_sent']):
             try:
                 message_id = data['message_id'] - i
@@ -208,24 +209,38 @@ async def back_to_orders_menu_handler(callback: CallbackQuery, state: FSMContext
                     await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
             except TelegramBadRequest:
                 continue
-    
+            
+    # Если вернулись из загрузки файлов
+    if callback.data == 'back_from_order_download':
+        await callback.bot.delete_message(chat_id=data['chat_id'],
+                                          message_id=callback.message.message_id)
+        message = await callback.bot.send_message(chat_id=data['chat_id'],
+                                        text='📋 <b>МЕНЮ СЕССИИ</b> 📋\n\n' \
+                                        f'📅 Дата сессии: <b>{data['session_date']}</b>\n' \
+                                        f'🏙️ Место: <b>{data['session_place']}</b>\n' \
+                                        f'📦 Метод выдачи заказов: <b>{data['session_method']}</b>\n',
+                                        reply_markup=kb.session_menu,
+                                        parse_mode='HTML')
+        await state.update_data(message_id=message.message_id)
+    else:
     # Перезаписываем только данные о сессии
-    data_refreshed = {'session_id': data['session_id'],
-            'session_date': data['session_date'],
-            'session_place': data['session_place'],
-            'session_method': data['session_method'],
-            'message_id': data['message_id'],
-            'chat_id': data['chat_id']}
-    await state.clear()
-    await state.update_data(data_refreshed)
-        
-    data = await state.get_data()
-        
-    await callback.message.edit_text('📋 <b>МЕНЮ СЕССИИ</b> 📋\n\n' \
-                                    f'📅 Дата сессии: <b>{data['session_date']}</b>\n' \
-                                    f'🏙️ Место: <b>{data['session_place']}</b>\n' \
-                                    f'📦 Метод выдачи заказов: <b>{data['session_method']}</b>\n',
-                                    reply_markup=kb.session_menu,
-                                    parse_mode='HTML')
+        data_refreshed = {'session_id': data['session_id'],
+                'session_date': data['session_date'],
+                'session_place': data['session_place'],
+                'session_method': data['session_method'],
+                'message_id': data['message_id'],
+                'chat_id': data['chat_id']}
+        await state.clear()
+        await state.update_data(data_refreshed)
+            
+        data = await state.get_data()
+
+        await callback.message.edit_text('📋 <b>МЕНЮ СЕССИИ</b> 📋\n\n' \
+                                        f'📅 Дата сессии: <b>{data['session_date']}</b>\n' \
+                                        f'🏙️ Место: <b>{data['session_place']}</b>\n' \
+                                        f'📦 Метод выдачи заказов: <b>{data['session_method']}</b>\n',
+                                        reply_markup=kb.session_menu,
+                                        parse_mode='HTML')
+
 
 

@@ -96,7 +96,12 @@ def order_text(order_items_data):
         text += '<b>Заказ пуст 🤷‍♂️</b>\n\n'
     
     order_disc = order_items_data['order_disc']
-    text += f'<b>🧾 К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100))} р</b>\n\n'
+    if order_disc > 0:
+        disc = f' (Скидка - {order_disc}% - {round(total_price * ((100 - order_disc) / 100))} р)'
+    else:
+        disc = ''
+    
+    text += f'🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100))} р</b>{disc}\n\n'
     
     order_note = order_items_data['order_note']
     if order_note:
