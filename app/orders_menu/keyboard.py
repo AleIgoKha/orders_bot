@@ -74,7 +74,7 @@ session_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
     [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
     [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
-    [InlineKeyboardButton(text='⬇️ Загрузить список заказов', callback_data='download_orders')],
+    [InlineKeyboardButton(text='⬇️ Скачать данные сессии', callback_data='session_downloads')],
     [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='orders')]
 ])
 

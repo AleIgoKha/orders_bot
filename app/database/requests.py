@@ -177,6 +177,7 @@ async def get_session_items_stats(session, session_id):
         .outerjoin(Item, Order.order_id == Item.order_id)
         .where(Order.session_id == session_id)
         .group_by(Item.item_name, Item.item_unit)
+        .order_by(asc(Item.item_name))
     )
     
     result = await session.execute(stmt)

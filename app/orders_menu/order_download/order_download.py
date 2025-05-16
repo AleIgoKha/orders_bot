@@ -1,3 +1,4 @@
+import re
 from aiogram import F, Router
 from aiogram.types import BufferedInputFile, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -5,14 +6,23 @@ from aiogram.enums import ChatAction
 from docx import Document
 from docx.shared import Pt, RGBColor, Cm
 from io import BytesIO
+from unidecode import unidecode
 
 import app.orders_menu.order_download.keyboard as kb
 from app.com_func import group_orders_items
-from app.database.requests import get_orders_items, get_session
+from app.database.requests import get_orders_items, get_session, get_orders, get_session_items_stats
 
 order_download = Router()
 
 
+@order_download.callback_query(F.data == 'session_downloads')
+async def session_downloads_handler(callback: CallbackQuery):
+    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ПУНКТ ДЛЯ ЗАГРУЗКИ</b> ❓',
+                                     reply_markup=kb.session_downloads_menu,
+                                     parse_mode='HTML')
+    
+
+# загружаем список заказов
 @order_download.callback_query(F.data == 'download_orders')
 async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -56,7 +66,7 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     font.color.rgb = RGBColor(0, 0, 0)
 
     # наполняем документ
-    doc.add_heading(f"{session_date} - {session_place}", level=1)
+    doc.add_heading(f"СПИСОК ЗАКАЗОВ СЕССИИ {session_date} - {session_place}", level=1)
     for order_items_data in orders_items_data:
         order_number = order_items_data['order_number']
         client_name = order_items_data['client_name']
@@ -136,9 +146,119 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     doc.save(file_bytes)
     file_bytes.seek(0)
     
+    filename = f'{session_date}_{unidecode(session_place)}_orders'.replace(' ', '_').replace('-', '_').lower()
+    filename = re.sub(r"[^a-z0-9_]", "", filename)
     
-    await callback.message.delete()
     await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)
     await callback.bot.send_document(chat_id=data['chat_id'],
-                                     document=BufferedInputFile(file=file_bytes.read(), filename='generated.docx'),
+                                     document=BufferedInputFile(file=file_bytes.read(), filename=f'{filename}.docx'),
                                      reply_markup=kb.back_from_order_download)
+    await callback.message.delete()
+
+
+
+# Скачать статистику в виде docx файла
+@order_download.callback_query(F.data == 'stats_download')
+async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
+    # Запрашиваем данные для всех заказов сессии и данные сессии
+    data = await state.get_data()
+    session_id = data['session_id']
+    session_data = await get_session(session_id=session_id)
+    session_date = str(session_data.session_date).split(' ')[0]
+    session_place = session_data.session_place
+    orders_data = await get_orders(session_id)
+    items_stats = await get_session_items_stats(session_id)
+    
+    doc = Document()
+    
+    # устанавливаем разметку страницы
+    section = doc.sections[0]
+    section.top_margin = Cm(1)
+    section.bottom_margin = Cm(1.5)
+    section.left_margin = Cm(1.5)
+    section.right_margin = Cm(1)
+    
+    # устанавливаем стили для документа
+    style = doc.styles['Heading 1']
+    font = style.font
+    font.name = 'Arial'
+    font.size = Pt(16)
+    font.color.rgb = RGBColor(0, 0, 0)
+
+    style = doc.styles['Heading 3']
+    font = style.font
+    font.name = 'Arial'
+    font.size = Pt(12)
+    font.color.rgb = RGBColor(0, 0, 0)
+    
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Arial'
+    font.size = Pt(10)
+    font.color.rgb = RGBColor(0, 0, 0)
+
+    # наполняем документ
+    doc.add_heading(f"СТАТИСТИКА СЕССИИ {session_date} - {session_place}", level=1)
+    
+    p = doc.add_paragraph()
+    
+    p.add_run(f'Общее количество заказов - ')
+    p.add_run(f'{len(orders_data)}').bold = True
+    
+    # межстрочные интервалы
+    p.paragraph_format.line_spacing = Pt(14)
+    
+    est_revenue = 0
+    exp_revenue = 0
+    for item_stats in items_stats:
+        p = doc.add_paragraph()
+        p.add_run(f'{item_stats[0]}').bold = True
+        run = p.add_run()
+        run.add_break()
+        
+        if item_stats[1] == 'кг':
+            run = p.add_run(f'Всего заказано - {round(item_stats[2], 3)} {item_stats[1]}')
+            run.add_break()
+            run = p.add_run(f'Всего взвешено - {round(item_stats[3], 3)} {item_stats[1]}')
+            run.add_break() 
+        else:
+            run = p.add_run(f'Всего заказано - {round(item_stats[2])} {item_stats[1]}')
+            run.add_break() 
+            
+        run = p.add_run(f'Заказано в вакууме - {round(item_stats[6])} шт.')
+        run.add_break()
+                
+        est_revenue += item_stats[4] # по заказанным количествам
+        if item_stats[1] == 'шт.':
+            exp_revenue += item_stats[4] # по фактическим количествам
+        else:
+            exp_revenue += item_stats[5] # по фактическим количествам
+        
+        # межстрочные интервалы
+        p.paragraph_format.line_spacing = Pt(14)
+    
+    p = doc.add_paragraph()
+    p.add_run(f'Ожидаемая выручка (без учета вак. уп.)').bold = True
+    run = p.add_run()
+    run.add_break()
+    run = p.add_run(f'По зазанному количеству - {round(est_revenue)} р')
+    run.add_break()
+    p.add_run(f'По взвешенному количеству - {round(exp_revenue)} р')
+    
+    # межстрочные интервалы
+    p.paragraph_format.line_spacing = Pt(14)
+    
+    file_bytes = BytesIO()
+    doc.save(file_bytes)
+    file_bytes.seek(0)
+    
+    
+    # Убираем слэши, пробелы и делаем символы маленькими, переводим в нижний регистр и убираем специальные символы
+    filename = f'{session_date}_{unidecode(session_place)}_stats'.replace(' ', '_').replace('-', '_').lower()
+    filename = re.sub(r"[^a-z0-9_]", "", filename)
+    
+    await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)
+    await callback.bot.send_document(chat_id=data['chat_id'],
+                                     document=BufferedInputFile(file=file_bytes.read(), filename=f'{filename}.docx'),
+                                     reply_markup=kb.back_from_order_download)
+    await callback.message.delete()

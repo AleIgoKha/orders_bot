@@ -2,13 +2,14 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
+
 import app.orders_menu.session_stats.keyboard as kb
-from app.database.requests import get_session_items_stats, get_orders
+from app.database.requests import get_session_items_stats, get_orders, get_session
 
 session_stats = Router()
- 
 
 # статистика по количеству товаров
+@session_stats.callback_query(F.data == 'back_to_stats_orders_menu')
 @session_stats.callback_query(F.data == 'stats_orders_menu')
 async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
     # Запрашиваем данные для всех заказов сессии
@@ -47,5 +48,5 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
     
     
     await callback.message.edit_text(text=text,
-                                    reply_markup=kb.back_stats_orders_menu,
+                                    reply_markup=kb.stats_orders_menu,
                                     parse_mode='HTML')
