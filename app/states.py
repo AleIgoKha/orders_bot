@@ -2,6 +2,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 class Product(StatesGroup):
     name = State()
+    change_name = State()
     unit = State()
     price = State()
     qty = State()

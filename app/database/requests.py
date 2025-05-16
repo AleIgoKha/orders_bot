@@ -148,6 +148,12 @@ async def change_order_data(session, order_id, order_data):
     await session.execute(update(Order).where(Order.order_id == order_id).values(order_data))
     await session.commit()
     
+    
+@connection
+async def change_product_data(session, product_id, product_data):
+    await session.execute(update(Product).where(Product.product_id == product_id).values(product_data))
+    await session.commit()
+    
 
 @connection
 async def delete_items(session, item_ids):
