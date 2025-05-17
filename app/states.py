@@ -5,6 +5,7 @@ class Product(StatesGroup):
     change_name = State()
     unit = State()
     price = State()
+    change_price = State()
     qty = State()
     new_qty = State()
     disc = State()

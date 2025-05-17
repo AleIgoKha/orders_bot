@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime, date
+from datetime import datetime
 
 
 import app.orders_menu.keyboard as kb
@@ -244,3 +244,14 @@ async def back_to_orders_menu_handler(callback: CallbackQuery, state: FSMContext
 
 
 
+# инициируем выбор сессии для ее изменения
+@orders_menu.callback_query(F.data.startswith('change_session_page_'))
+@orders_menu.callback_query(F.data == 'change_session')
+async def choose_session(callback: CallbackQuery):
+    if callback.data.startswith('change_session_page_'):
+        page = int(callback.data.split('_')[-1])
+    else:
+        page = 1
+    await callback.message.edit_text('<b>Выберите сессию из списка ниже</b>',
+                                     reply_markup=await kb.change_choose_session(page=page),
+                                     parse_mode='HTML')

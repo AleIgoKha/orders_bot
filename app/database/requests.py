@@ -165,6 +165,11 @@ async def delete_order(session, order_id):
     await session.execute(delete(Order).where(Order.order_id == order_id))
     await session.commit()
     
+@connection
+async def delete_product(session, product_id):
+    await session.execute(delete(Product).where(Product.product_id == product_id))
+    await session.commit()
+    
     
 # Подсчет статистики по товарам
 @connection

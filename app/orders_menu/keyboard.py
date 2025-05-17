@@ -133,6 +133,40 @@ def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+# Функция для создания клавиатуры-списка сессий с пагинацией
+async def change_choose_session(page: int = 1, sessions_per_page: int = 8):
+    sessions = await get_sessions()
+    session_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * sessions_per_page
+    end = start + sessions_per_page
+    current_sessions = sessions[start:end]
+    
+    for session in current_sessions:
+        text = f"{session.session_date.strftime('%d-%m-%Y')} - {session.session_place} - {session.session_method}"
+        callback_data = f"change_session_id_{session.session_id}"
+        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    session_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"change_session_page_{page - 1}")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='orders'))
+    
+    if end < len(sessions):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Более ранние ➡️", callback_data=f"change_session_page_{page + 1}")
+        )
+        
+    if navigation_buttons:
+        session_keyboard.row(*navigation_buttons)
+
+    return session_keyboard.as_markup()
 
 
 

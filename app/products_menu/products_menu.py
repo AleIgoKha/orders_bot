@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 
 import app.products_menu.keyboard as kb
 from app.states import Product
-from app.database.requests import add_product, get_products, get_product, change_product_data
+from app.database.requests import add_product, get_products, get_product, change_product_data, delete_product
 
 products_menu = Router()
 
@@ -14,7 +14,7 @@ products_menu = Router()
 @products_menu.callback_query(F.data == 'products_menu')
 async def products_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.edit_text(text='<b>МЕНЮ ТОВАРОВ</b>',
+    await callback.message.edit_text(text='🧀 <b>МЕНЮ ТОВАРОВ</b> 🧀',
                                      reply_markup=kb.products_menu,
                                      parse_mode='HTML')
 
@@ -27,7 +27,9 @@ async def product_add(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='<b>Введите название товара</b>',
                                      reply_markup=kb.product_cancellation,
                                      parse_mode='HTML')
-    await state.update_data(message_id=callback.message.message_id, chat_id=callback.message.chat.id)
+    await state.update_data(message_id=callback.message.message_id,
+                            chat_id=callback.message.chat.id,
+                            from_callback=callback.data)
 
 
 # Фиксирование наименования товара
@@ -49,13 +51,20 @@ async def product_name(message: Message, state: FSMContext):
 @products_menu.callback_query(F.data.in_(["кг", "шт."]))
 async def product_unit(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    await state.update_data(product_unit=callback.data)
-    # Изменяем состояние для операции стоимости товара
-    await state.set_state(Product.price)
-    await callback.message.edit_text(text=f'<b>Введите стоимость 1 {callback.data} товара {data['product_name']} в рублях ПМР</b>',
-                                    reply_markup=kb.product_cancellation,
-                                    parse_mode='HTML')
-
+    # Если создаем продукт
+    if data['from_callback'] == 'add_product':
+        await state.update_data(product_unit=callback.data)
+        # Изменяем состояние для операции стоимости товара
+        await state.set_state(Product.price)
+        await callback.message.edit_text(text=f'<b>Введите стоимость 1 {callback.data} товара {data['product_name']} в рублях ПМР</b>',
+                                        reply_markup=kb.product_cancellation,
+                                        parse_mode='HTML')
+    # Если меняем ед. изм. продукта
+    elif data['from_callback'] == 'change_product_data':
+        product_data = {'product_unit': callback.data}
+        await change_product_data(product_id=data['product_id'], product_data=product_data)
+        await change_product_menu_handler(callback, state)
+        
 
 # Фиксирование стоимости единицы товара
 @products_menu.message(Product.price)
@@ -88,7 +97,10 @@ async def product_price(message: Message, state: FSMContext):
 # добавляем товары в базу данных
 @products_menu.callback_query(F.data == 'product_confirmation')
 async def product_confirmation(callback: CallbackQuery, state: FSMContext):
-    product_data = await state.get_data() 
+    data = await state.get_data() 
+    product_data = {'product_name': data['product_name'],
+                    'product_unit': data['product_unit'],
+                    'product_price': data['product_price']}
     await add_product(product_data)
     await callback.answer('Продукт успешно добавлен в базу', show_alert=True)
     await products_menu_handler(callback, state)
@@ -117,7 +129,7 @@ async def choose_product_handler(callback: CallbackQuery, state: FSMContext):
         page = int(callback.data.split('_')[-1])
     else:
         page = 1
-        state.update_data(from_callback=callback.data)
+        await state.update_data(from_callback=callback.data)
     
     products = await get_products()
     
@@ -130,6 +142,7 @@ async def choose_product_handler(callback: CallbackQuery, state: FSMContext):
 @products_menu.callback_query(F.data.startswith('products_menu_product_id_'))
 @products_menu.callback_query(F.data == 'back_to_change_product_menu')
 async def change_product_menu_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
     # достаем данные продукта
     if callback.data.startswith('products_menu_product_id_'):
         product_id = int(callback.data.split('_')[-1])
@@ -171,6 +184,7 @@ async def change_product_name_handler(callback: CallbackQuery, state: FSMContext
     
 
 # сохраняем обновленные данные продукта в базу данных и выводим меню изменения продукта
+@products_menu.message(Product.change_price)
 @products_menu.message(Product.change_name)
 async def save_product_name_handler(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -180,8 +194,22 @@ async def save_product_name_handler(message: Message, state: FSMContext):
     if state_name == 'change_name':
         product_data = {'product_name': message.text}
     elif state_name == 'change_price':
-        product_data = {'product_price': message.text}
-    
+        try:
+            product_data = {'product_price': float(message.text)}
+        except:
+            try:
+                await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                    message_id=data['message_id'],
+                                                    text='❗<b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b>❗\n\n' \
+                                                        'Формат ввода предполагает использование цифр и одного десятичного разделителя: <i>123.45</i>\n\n' \
+                                                        f'Введите новую стоимость за 1 <b>{data['product_unit']}</b> товара <b>{data['product_name']}</b>. ' \
+                                                        f'Текущая стоимость <b>{data['product_price']}</b>',
+                                                    reply_markup=kb.product_cancellation,
+                                                    parse_mode='HTML')
+                return None
+            except TelegramBadRequest:
+                return None
+        
     await change_product_data(product_id, product_data)
 
     # извлекаем данные одного продукта
@@ -203,3 +231,41 @@ async def save_product_name_handler(message: Message, state: FSMContext):
                                         parse_mode='HTML')
     
 
+# Инициируем изменение стоимости товара
+@products_menu.callback_query(F.data == 'change_product_price')
+async def change_product_price_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    await callback.message.edit_text(text=f'Введите новую стоимость за 1 <b>{data['product_unit']}</b> товара <b>{data['product_name']}</b>. ' \
+                                            f'Текущая стоимость <b>{data['product_price']}</b>',
+                                     reply_markup=kb.back_to_change_product_menu,
+                                     parse_mode='HTML')
+    await state.set_state(Product.change_price)
+    
+
+# Инициируем изменение единицы измерения товара
+@products_menu.callback_query(F.data == 'change_product_unit')
+async def change_product_unit(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    await callback.message.edit_text(text=f'Выберите новую единицу измерения товара <b>{data['product_name']}</b>. ' \
+                                        f'Текущая единица измерения <b>{data['product_unit']}</b>',
+                                        reply_markup=kb.change_product_units,
+                                        parse_mode='HTML')
+    
+    
+# Инициируем удаление товара
+@products_menu.callback_query(F.data == 'delete_product')
+async def delete_product_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    await callback.message.edit_text(text=f'⁉️ Вы уверены, что хотите удалить <b>{data['product_name']}</b> из базы данных?',
+                                     reply_markup=kb.confirm_delete_product,
+                                     parse_mode='HTML')
+    
+
+# Подтверждаем удаление и выходим в меню товаров
+@products_menu.callback_query(F.data == 'confirm_delete_product')
+async def confirm_delete_product_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    product_id = data['product_id']
+    await delete_product(product_id=product_id)
+    await callback.answer(text='Продукт успешно удален из базы данных', show_alert=True)
+    await products_menu_handler(callback, state)
