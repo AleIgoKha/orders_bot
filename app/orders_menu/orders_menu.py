@@ -255,3 +255,5 @@ async def choose_session(callback: CallbackQuery):
     await callback.message.edit_text('<b>Выберите сессию из списка ниже</b>',
                                      reply_markup=await kb.change_choose_session(page=page),
                                      parse_mode='HTML')
+    
+
