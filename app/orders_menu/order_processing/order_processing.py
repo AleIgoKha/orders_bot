@@ -185,7 +185,7 @@ async def item_qty_handler(message: Message, state: FSMContext):
         qty = item_qty_fact / 1000
     else:
         qty = item_qty_fact
-    item_data = {'item_qty_fact': item_qty_fact}
+    item_data = {'item_qty_fact': qty}
     await change_item_data(item_id, item_data)
     await state.set_state(None)
 
