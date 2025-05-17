@@ -1,7 +1,8 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Filter, Command
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 
 import app.keyboard as kb
 
@@ -17,11 +18,24 @@ class Admin(Filter):
 # Главное меню
 @main_menu.message(Admin(), Command('start'))
 @main_menu.callback_query(F.data == 'main_menu')
-async def main_menu_handler(event: Message | CallbackQuery, state: FSMContext):
+async def main_menu_handler(event: Message | CallbackQuery, state: FSMContext, bot: Bot):
     await state.clear()
     if isinstance(event, Message):
         await event.delete()
-        await event.answer(text='🏠 <b>ГЛАВНОЕ МЕНЮ</b> 🏠', reply_markup=kb.main_menu, parse_mode='HTML')
+        sent_message = await event.answer(text='🏠 <b>ГЛАВНОЕ МЕНЮ</b> 🏠', reply_markup=kb.main_menu, parse_mode='HTML')
+        # Удаляем все другие сообщения, кроме последнего с меню пока не будет 5 сообщений подряд, которые уже удалены
+        message_id = sent_message.message_id
+        chat_id = sent_message.chat.id
+        for id in range(message_id - 1, 0, -1):
+            try:
+                bad_tries = 0
+                await bot.delete_message(chat_id=chat_id, message_id=id)
+            except TelegramBadRequest:
+                bad_tries += 1
+                if bad_tries <= 5:
+                    continue
+                else:
+                    break
     else:
         await event.message.edit_text(text='🏠 <b>ГЛАВНОЕ МЕНЮ</b> 🏠', reply_markup=kb.main_menu, parse_mode='HTML')
         
