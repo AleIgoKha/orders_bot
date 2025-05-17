@@ -35,9 +35,7 @@ async def orders_processing_list_handler(callback: CallbackQuery, state: FSMCont
         if data['callback_name'] != 'order_processing':
             return await back_to_orders_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования
-    
-    # Удаляем последнее сообщение
-    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=data['message_id'])
+
 
     messages_sent = 0
     # Формируем и отправляем сообщения с информацией о заказах
@@ -55,6 +53,9 @@ async def orders_processing_list_handler(callback: CallbackQuery, state: FSMCont
                                                         text=text,
                                                         reply_markup=kb.last_process_button(order_items_data['order_id']),
                                                         parse_mode='HTML')
+    
+    # Удаляем сообщение с мею сессии
+    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=data['message_id'])
     
     # сохраняем данные id последнего сообщения
     await state.update_data(message_id=message.message_id, messages_sent=messages_sent, from_menu='order_processing')
