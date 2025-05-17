@@ -110,8 +110,7 @@ async def process_order_data_handler(callback: CallbackQuery, state: FSMContext)
     
     items_data_list = [order_items_data[item]
                        for item in order_items_data.keys() if item.startswith('item_')
-                       and order_items_data[item]['item_qty_fact'] == 0
-                       and order_items_data[item]['item_unit'] != 'шт.']
+                       and order_items_data[item]['item_qty_fact'] == 0]
     
     if len(items_data_list) == 0:
         await callback.answer(text='Нет товаров для обработки', show_alert=True)
@@ -136,10 +135,16 @@ async def item_processing(callback: CallbackQuery, state: FSMContext):
     item_id = int(callback.data.split('_')[-1])
     await state.update_data(item_id=item_id)
     item = await get_item(item_id)
+    if item.item_unit == 'кг':
+        qty = int(item.item_qty * 1000)
+        unit = item.item_unit[-1]
+    else:
+        qty = int(item.item_qty)
+        unit = item.item_unit
     
     await callback.message.edit_text(text='❓<b>ВВЕДИТЕ ВЗВЕШЕННОЕ КОЛИЧЕСТВО ТОВАРА</b>❓\n\n' \
                                             f'Выбранный товар <b>{item.item_name}</b> заказан в размере ' \
-                                            f'<b>{int(item.item_qty * 1000)} {item.item_unit[-1]}</b>',
+                                            f'<b>{qty} {unit}</b>',
                                             reply_markup=kb.back_to_order_proccessing_menu,
                                             parse_mode='HTML')
     await state.set_state(Item.item_qty_fact)
@@ -155,21 +160,32 @@ async def item_qty_handler(message: Message, state: FSMContext):
     except:
         try:
             item = await get_item(data['item_id'])
+            if item.item_unit == 'кг':
+                qty = int(item.item_qty * 1000)
+                unit = item.item_unit[-1]
+            else:
+                qty = int(item.item_qty)
+                unit = item.item_unit
             await message.bot.edit_message_text(chat_id=data['chat_id'],
                                             message_id=data['message_id'],
                                             text='❗<b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b>❗\n\n' \
                                                 'Формат ввода предполагает использование цифр и одного десятичного разделителя: <i>123.45</i>\n\n' \
                                                 '❓<b>ВВЕДИТЕ ВЗВЕШЕННОЕ КОЛИЧЕСТВО ТОВАРА</b>❓\n\n' \
                                                 f'Выбранный товар <b>{item.item_name}</b> заказан в размере ' \
-                                                f'<b>{int(item.item_qty * 1000)} {item.item_unit[-1]}</b>',
+                                                f'<b>{qty} {unit}</b>',
                                             reply_markup=kb.back_to_order_proccessing_menu,
                                             parse_mode='HTML')
             return None
         except TelegramBadRequest:
             return None
     
+    item = await get_item(data['item_id'])
     item_id = data['item_id']
-    item_data = {'item_qty_fact': item_qty_fact / 1000}
+    if item.item_unit == 'кг':
+        qty = item_qty_fact / 1000
+    else:
+        qty = item_qty_fact
+    item_data = {'item_qty_fact': item_qty_fact}
     await change_item_data(item_id, item_data)
     await state.set_state(None)
 
@@ -180,8 +196,7 @@ async def item_qty_handler(message: Message, state: FSMContext):
 
     items_data_list = [order_items_data[item]
                        for item in order_items_data.keys() if item.startswith('item_')
-                       and order_items_data[item]['item_qty_fact'] == 0
-                       and order_items_data[item]['item_unit'] != 'шт.']
+                       and order_items_data[item]['item_qty_fact'] == 0]
     if len(items_data_list) != 0:
         # переходим на первую страницу списка товаров для обработки
         await message.bot.edit_message_text(chat_id=data['chat_id'],
@@ -218,8 +233,7 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
     
     # Если не не осталось необработанных товаров, то разрешаем перевести в успешно обработанный
     items_left = len([item for item in order_items_data.keys() if item.startswith('item_')
-                    and order_items_data[item]['item_qty_fact'] == 0
-                    and order_items_data[item]['item_unit'] != 'шт.'])
+                    and order_items_data[item]['item_qty_fact'] == 0])
     if items_left == 0:
         order_data = {'order_completed': True}
         await change_order_data(order_id=order_id, order_data=order_data)

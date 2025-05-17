@@ -40,13 +40,11 @@ def order_message(order_items_data):
                 vacc_price = 0
                 
             text += f'{item_name}{item_vacc}'
-            
+            item_price = round(item_qty_fact * float(item_price) + vacc_price)
             if item_unit == 'кг': # Переводим килограмы в граммы
-                item_price = round(item_qty_fact * float(item_price)) + vacc_price
                 text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
             else:
-                item_price = round(item_qty * float(item_price) + vacc_price)
-                text += f' - {int(item_qty)} {item_unit}\n'
+                text += f' - {int(item_qty_fact)} {item_unit}\n'
             # Рассчитываем стоимость всключая вакуум
             
             total_price += item_price

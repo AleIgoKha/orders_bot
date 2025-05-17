@@ -21,7 +21,7 @@ order_processing_menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📋 Управление данными заказа', callback_data='change_order_data')],
     [InlineKeyboardButton(text='⚙ Обработка заказа', callback_data='process_order')],
     [InlineKeyboardButton(text='✅ Закончить обработку', callback_data='complete_order')],
-    [InlineKeyboardButton(text='❌ Назад к списку', callback_data='order_processing')]
+    [InlineKeyboardButton(text='⬅️ Назад к списку', callback_data='order_processing')]
 ])
 
 
@@ -34,9 +34,15 @@ def choose_item_processing(items_data_list: list, page: int = 1, items_per_page:
     current_items = items_data_list[start:end]
     
     for item in current_items:
-        text = f"{item['item_name']} - " \
-                f"Заказано: {int(item['item_qty'] * 1000)} {item['item_unit'][-1]} - " \
-                f"Взвешено: {int(item['item_qty_fact'] * 1000)} {item['item_unit'][-1]}"
+        if item['item_unit'] == 'кг':
+            text = f"{item['item_name']} - " \
+                    f"Заказано: {int(item['item_qty'] * 1000)} {item['item_unit'][-1]} - " \
+                    f"Взвешено: {int(item['item_qty_fact'] * 1000)} {item['item_unit'][-1]}"
+        else:
+            text = f"{item['item_name']} - " \
+                    f"Заказано: {int(item['item_qty'])} {item['item_unit']} - " \
+                    f"Взвешено: {int(item['item_qty_fact'])} {item['item_unit']}"
+                    
         callback_data = f"item_id_{item['item_id']}"
         item_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
     

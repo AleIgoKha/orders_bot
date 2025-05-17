@@ -73,21 +73,23 @@ def order_text(order_items_data):
                 text += f'Заказано - <b>{int(item_qty * 1000)} {item_unit[-1]}</b>\n' \
                         f'Взвешено - <b>{int(item_qty_fact * 1000)} {item_unit[-1]}</b>\n'
             else:
-                item_qty_fact = item_qty
-                text += f'Заказано - <b>{int(item_qty)} {item_unit}</b>\n'
+                text += f'Заказано - <b>{int(item_qty)} {item_unit}</b>\n' \
+                        f'Взвешено - <b>{int(item_qty_fact)} {item_unit}</b>\n'
             # Рассчитываем стоимость всключая вакуум
             
             if item_vacc:
-                if item_qty_fact < 200:
+                if item_qty_fact == 0:
+                    vacc_price = 0
+                elif 0 < item_qty_fact < 200:
                     vacc_price = 5
                 elif 200 <= item_qty_fact < 300:
                     vacc_price = 6
                 elif 300 <= item_qty_fact:
-                    vacc_price = (item_qty_fact * 2) // 100
+                    vacc_price = (item_qty_fact * 2) / 100
             else:
                 vacc_price = 0
 
-            item_price = round(item_qty_fact * float(item_price)) + vacc_price
+            item_price = round(item_qty_fact * float(item_price) + vacc_price)
             total_price += item_price
             
             text += f'Стоимость - <b>{item_price} р</b>\n\n'

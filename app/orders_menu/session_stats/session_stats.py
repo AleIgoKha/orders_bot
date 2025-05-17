@@ -32,15 +32,13 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                     f'Всего взвешено - <b>{round(item_stats[3], 3)} {item_stats[1]}</b>\n'
                     
         else:
-            text += f'Всего заказано - <b>{round(item_stats[2])} {item_stats[1]}</b>\n'
+            text += f'Всего заказано - <b>{round(item_stats[2])} {item_stats[1]}</b>\n' \
+                    f'Всего взвешено - <b>{round(item_stats[3])} {item_stats[1]}</b>\n'
             
         text += f'Заказано в вакууме - <b>{round(item_stats[6])} шт.</b>\n\n'
                 
         est_revenue += item_stats[4] # по заказанным количествам
-        if item_stats[1] == 'шт.':
-            exp_revenue += item_stats[4] # по фактическим количествам
-        else:
-            exp_revenue += item_stats[5] # по фактическим количествам
+        exp_revenue += item_stats[5] # по фактическим количествам
     
     text += f'<b>💸 Ожидаемая выручка (без учета вак. уп.)</b>\n' \
             f'По зазанному количеству - <b>{round(est_revenue)} р</b>\n' \

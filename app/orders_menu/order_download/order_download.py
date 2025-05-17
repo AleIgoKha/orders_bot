@@ -97,12 +97,14 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
                     p.add_run(f'Заказано - {int(item_qty * 1000)} {item_unit[-1]} / ')
                     p.add_run(f'Взвешено - {int(item_qty_fact * 1000)} {item_unit[-1]} / ')
                 else:
-                    item_qty_fact = item_qty
                     p.add_run(f'Заказано - {int(item_qty)} {item_unit} / ')
+                    p.add_run(f'Взвешено - {int(item_qty_fact)} {item_unit} / ')
                 # Рассчитываем стоимость всключая вакуум
                 
                 if item_vacc:
-                    if item_qty_fact < 200:
+                    if item_qty_fact == 0:
+                        vacc_price = 0
+                    elif 0 < item_qty_fact < 200:
                         vacc_price = 5
                     elif 200 <= item_qty_fact < 300:
                         vacc_price = 6
@@ -111,7 +113,7 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
                 else:
                     vacc_price = 0
 
-                item_price = round(item_qty_fact * float(item_price)) + vacc_price
+                item_price = round(item_qty_fact * float(item_price) + vacc_price)
                 total_price += item_price
                 
                 run = p.add_run(f'Стоимость - {item_price} р')
@@ -223,16 +225,14 @@ async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
             run.add_break() 
         else:
             run = p.add_run(f'Всего заказано - {round(item_stats[2])} {item_stats[1]}')
+            run = p.add_run(f'Всего взвешено - {round(item_stats[3])} {item_stats[1]}')
             run.add_break() 
             
         run = p.add_run(f'Заказано в вакууме - {round(item_stats[6])} шт.')
         run.add_break()
                 
         est_revenue += item_stats[4] # по заказанным количествам
-        if item_stats[1] == 'шт.':
-            exp_revenue += item_stats[4] # по фактическим количествам
-        else:
-            exp_revenue += item_stats[5] # по фактическим количествам
+        exp_revenue += item_stats[5] # по фактическим количествам
         
         # межстрочные интервалы
         p.paragraph_format.line_spacing = Pt(14)

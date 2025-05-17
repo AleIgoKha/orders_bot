@@ -108,8 +108,7 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
     elif data['callback_name'] == 'change_item_qty_fact':
         qty_option = 'ИЗМЕНЕНИЯ ЕГО ФАКТИЧЕСКОГО КОЛИЧЕСТВА'
         items_data_list = [order_items_data[item]
-                        for item in order_items_data.keys() if item.startswith('item_')
-                        and order_items_data[item]['item_unit'] != 'шт.']
+                        for item in order_items_data.keys() if item.startswith('item_')]
     elif data['callback_name'] == 'delete_item':
         qty_option = 'ЕГО УДАЛЕНИЯ'
         items_data_list = [order_items_data[item]
@@ -171,10 +170,15 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
     if item_unit == 'кг':
         item_unit = item_unit[-1]
         item_unit_amend = 'граммах'
+        qty = item_data.item_qty * 1000
+        qty_fact = f', взвешенный в количестве <b>{item_data.item_qty_fact * 1000} {item_unit}</b>'
+    else:
+        qty = item_data.item_qty
+        qty_fact = ' '
         
     if data['callback_name'] == 'delete_item':
         await callback.message.edit_text(text=f'❓ <b>ПОДТВЕРДИТЕ УДАЛЕНИЕ ТОВАРА ИЗ ЗАКАЗА</b> ❓\n\n'
-                                         f'Выбранный товар - <b>{item_data.item_name}</b>',
+                                            f'Выбранный товар - <b>{item_data.item_name} - {qty} {item_unit}</b>{qty_fact}',
                                         reply_markup=kb.confirm_delete_item,
                                         parse_mode='HTML')
     else:
@@ -182,7 +186,7 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
         if data['callback_name'] == 'change_item_qty':
             qty_option = 'ЗАКАЗАННОЕ'
         await callback.message.edit_text(text=f'❓ <b>УКАЖИТЕ {qty_option} КОЛИЧЕСТВО ПРОДУКТА</b> ❓\n\n' \
-                                            f'Выбранный товар - <b>{item_data.item_name} - {item_data.item_price} р/{item_unit}</b>. ' \
+                                            f'Выбранный товар - <b>{item_data.item_name} - {qty} {item_unit}</b>{qty_fact}' \
                                             f'Количество укажите в <b>{item_unit_amend}</b>',
                                         reply_markup=kb.back_to_change_item_data,
                                         parse_mode='HTML')
@@ -208,19 +212,28 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
             text_option = 'ЗАКАЗАННОЕ'
     # Проверяем формат ввода цифр
         try:
-            item_qty = Decimal(message.text.replace(',', '.')) / 1000
+            item_data = await get_item(data['item_id'])
+            item_unit = item_data.item_unit
+            item_unit_amend = 'штуках'
+            if item_unit == 'кг':
+                item_qty = Decimal(message.text.replace(',', '.')) / 1000
+                item_unit = item_unit[-1]
+                item_unit_amend = 'граммах'
+                qty = item_data.item_qty * 1000
+                qty_fact = f', взвешенный в количестве <b>{item_data.item_qty_fact * 1000} {item_unit}</b>'
+
+            else:
+                qty = item_data.item_qty
+                qty_fact = '.'
+                item_qty = Decimal(message.text.replace(',', '.'))
         except:
             try:
-                item_data = await get_item(data['item_id'])
-                item_unit = item_data.item_unit
-                item_unit_amend = 'штуках'
-                if item_unit == 'кг':
-                    item_unit_amend = 'граммах'
+
                 await message.bot.edit_message_text(chat_id=data['chat_id'],
                                                 message_id=data['message_id'],
                                                 text='❗ <b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b> ❗\n\n' \
                                                     f'❓ <b>УКАЖИТЕ {text_option} КОЛИЧЕСТВО ПРОДУКТА</b> ❓\n\n' \
-                                                    f'Выбранный товар - <b>{item_data.item_name} - {item_data.item_price} р/{item_unit}</b>. ' \
+                                                    f'Выбранный товар - <b>{item_data.item_name} - {qty} {item_unit}</b>{qty_fact}' \
                                                     f'Количество укажите в <b>{item_unit_amend}</b>',
                                                 reply_markup=kb.back_to_change_item_data,
                                                 parse_mode='HTML')
@@ -372,7 +385,7 @@ async def confirm_delete_order_handler(message: Message, state: FSMContext):
     else:
         await message.bot.edit_message_text(chat_id=data['chat_id'],
                                             message_id=data['message_id'],
-                                            text='❗ <b>НЕПРАВИЛЬНО ВВЕДЕНЫ ДАННЫЕ!</b> ❗\n\nДля удаления заказа введите:\n <i>УДАЛИТЬ</i>',
+                                            text='❗ <b>НЕПРАВИЛЬНО ВВЕДЕНЫ ДАННЫЕ!</b> ❗\n\nДля удаления заказа введите:\n<i>УДАЛИТЬ</i>',
                                             parse_mode='HTML',
                                             reply_markup=kb.back_to_change_order_data)
 
