@@ -33,7 +33,7 @@ class Session(Base):
     session_date: Mapped[datetime] = mapped_column(DateTime)
     session_place: Mapped[str] = mapped_column(String)
     session_method: Mapped[str] = mapped_column(String(20))
-    session_name: Mapped[str] = mapped_column(String)
+    # session_name: Mapped[str] = mapped_column(String)
     
 class Order(Base):
     __tablename__ = 'orders'
