@@ -2,9 +2,9 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-import app.orders_menu.completed_orders.keyboard as kb
+import app.main_menu.sessions.completed.keyboard as kb
 from app.database.requests import get_orders_items
-from app.orders_menu.orders_menu import back_to_orders_menu_handler
+from app.main_menu.sessions.orders_menu import back_to_orders_menu_handler
 from app.com_func import group_orders_items
 
 completed_orders = Router()

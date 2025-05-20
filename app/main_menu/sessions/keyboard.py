@@ -5,34 +5,24 @@ from datetime import date
 
 from app.database.requests import get_sessions, get_products
 
-main_menu_button = InlineKeyboardButton(text='⬅️ Назад', callback_data='main_menu')
-
-# Используется как шаблон в этом же файле
-session_cancellation_button = InlineKeyboardButton(text='❌ Отменить', callback_data='orders')
-
-orders_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Создать сессию', callback_data='new_session')],
-    [InlineKeyboardButton(text='Выбрать сессию', callback_data='choose_session')],
-    [InlineKeyboardButton(text='Изменить сессию', callback_data='change_session')],
-    [main_menu_button]
-])
 
 session_cancellation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
 ])
 
 issuing_method = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🤝 Самовывоз', callback_data='Самовывоз')],
     [InlineKeyboardButton(text='🚗 Доставка по городу', callback_data='Доставка по городу')],
     [InlineKeyboardButton(text='🚚 Доставка почтой', callback_data='Доставка почтой')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='orders')]
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
 ])
 
 session_confirmation = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='✅ Подтвердить', callback_data='session_confirmation')],
     [InlineKeyboardButton(text='✍🏻 Изменить', callback_data='new_session')],
-    [InlineKeyboardButton(text='❌ Отменить создание сессии', callback_data='orders')]
+    [InlineKeyboardButton(text='❌ Отменить создание сессии', callback_data='sessions:choose_session')]
 ])
+
 
 # Функция для создания клавиатуры-списка сессий с пагинацией
 async def choose_session(page: int = 1, sessions_per_page: int = 8):
@@ -48,6 +38,8 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
         callback_data = f"session_id_{session.session_id}"
         session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
     
+    session_keyboard.add(InlineKeyboardButton(text='➕ Новая сессия', callback_data='new_session'))
+    
     session_keyboard.adjust(1)
     
     navigation_buttons = []
@@ -57,7 +49,7 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
             InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"session_page_{page - 1}")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='orders'))
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='main:menu'))
     
     if end < len(sessions):
         navigation_buttons.append(
@@ -69,13 +61,15 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
 
     return session_keyboard.as_markup()
 
+
+
 session_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
     [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
     [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
     [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
     [InlineKeyboardButton(text='⬇️ Скачать данные сессии', callback_data='session_downloads')],
-    [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='orders')]
+    [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='main:menu')]
 ])
 
 
@@ -125,49 +119,12 @@ def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
 
     navigation_buttons = [
         InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"session:month:prev:{year}:{month}"),
-        InlineKeyboardButton(text="❌ Отмена", callback_data="orders"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="sessions:choose_session"),
         InlineKeyboardButton(text="➡️ Позднее", callback_data=f"session:month:next:{year}:{month}"),
     ]
     keyboard.append(navigation_buttons)
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-# Функция для создания клавиатуры-списка сессий с пагинацией
-async def change_choose_session(page: int = 1, sessions_per_page: int = 8):
-    sessions = await get_sessions()
-    session_keyboard = InlineKeyboardBuilder()
-    
-    start = (page - 1) * sessions_per_page
-    end = start + sessions_per_page
-    current_sessions = sessions[start:end]
-    
-    for session in current_sessions:
-        text = f"{session.session_date.strftime('%d-%m-%Y')} - {session.session_place} - {session.session_method}"
-        callback_data = f"change_session_id_{session.session_id}"
-        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    session_keyboard.adjust(1)
-    
-    navigation_buttons = []
-    
-    if page > 1:
-        navigation_buttons.append(
-            InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"change_session_page_{page - 1}")
-        )
-    
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='orders'))
-    
-    if end < len(sessions):
-        navigation_buttons.append(
-            InlineKeyboardButton(text="Более ранние ➡️", callback_data=f"change_session_page_{page + 1}")
-        )
-        
-    if navigation_buttons:
-        session_keyboard.row(*navigation_buttons)
-
-    return session_keyboard.as_markup()
-
 
 
 back_to_change_order_data = InlineKeyboardMarkup(inline_keyboard=[

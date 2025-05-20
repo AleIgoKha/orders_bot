@@ -8,7 +8,7 @@ from docx.shared import Pt, RGBColor, Cm
 from io import BytesIO
 from unidecode import unidecode
 
-import app.orders_menu.order_download.keyboard as kb
+import app.main_menu.sessions.downloading.keyboard as kb
 from app.com_func import group_orders_items
 from app.database.requests import get_orders_items, get_session, get_orders, get_session_items_stats
 

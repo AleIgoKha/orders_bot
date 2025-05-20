@@ -4,10 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
-import app.orders_menu.order_processing.keyboard as kb
+import app.main_menu.sessions.processing.keyboard as kb
 from app.states import Item
 from app.database.requests import get_orders_items, get_order_items, get_item, change_item_data, change_order_data
-from app.orders_menu.orders_menu import back_to_orders_menu_handler
+from app.main_menu.sessions.orders_menu import back_to_orders_menu_handler
 from app.com_func import group_orders_items, order_text
 
 order_processing = Router()

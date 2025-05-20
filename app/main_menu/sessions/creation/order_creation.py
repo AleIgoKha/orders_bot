@@ -4,8 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
-import app.orders_menu.order_creation.keyboard as kb
-from app.orders_menu.orders_menu import session_menu_handler
+import app.main_menu.sessions.creation.keyboard as kb
+from app.main_menu.sessions.orders_menu import session_menu_handler
 from app.states import Order, Product
 from app.database.requests import get_product, add_order, get_new_last_number, get_order_id, add_order_items
 

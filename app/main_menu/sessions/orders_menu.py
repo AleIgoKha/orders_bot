@@ -5,17 +5,11 @@ from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
 
 
-import app.orders_menu.keyboard as kb
+import app.main_menu.sessions.keyboard as kb
 from app.states import Session
 from app.database.requests import add_session, get_session
 
 orders_menu = Router()
-
-# Раздел заказов
-@orders_menu.callback_query(F.data == 'orders')
-async def orders_menu_handler(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await callback.message.edit_text(text='📦 <b>МЕНЮ ЗАКАЗОВ</b> 📦', reply_markup=kb.orders_menu, parse_mode='HTML')
 
 
 # добавление новой сессии
@@ -138,12 +132,12 @@ async def session_confirmation(callback: CallbackQuery, state: FSMContext):
     }
     await add_session(session_data)
     await callback.answer('Новая сессия успешно создана', show_alert=True)
-    await orders_menu_handler(callback, state)
+    await choose_session(callback)
 
 
 # Открываем существующую сессию
 @orders_menu.callback_query(F.data.startswith('session_page_'))
-@orders_menu.callback_query(F.data == 'choose_session')
+@orders_menu.callback_query(F.data == 'sessions:choose_session')
 async def choose_session(callback: CallbackQuery):
     if callback.data.startswith('session_page_'):
         page = int(callback.data.split('_')[-1])
@@ -241,19 +235,3 @@ async def back_to_orders_menu_handler(callback: CallbackQuery, state: FSMContext
                                         f'📦 Метод выдачи заказов: <b>{data['session_method']}</b>\n',
                                         reply_markup=kb.session_menu,
                                         parse_mode='HTML')
-
-
-
-# инициируем выбор сессии для ее изменения
-@orders_menu.callback_query(F.data.startswith('change_session_page_'))
-@orders_menu.callback_query(F.data == 'change_session')
-async def choose_session(callback: CallbackQuery):
-    if callback.data.startswith('change_session_page_'):
-        page = int(callback.data.split('_')[-1])
-    else:
-        page = 1
-    await callback.message.edit_text('<b>Выберите сессию из списка ниже</b>',
-                                     reply_markup=await kb.change_choose_session(page=page),
-                                     parse_mode='HTML')
-    
-

@@ -4,7 +4,7 @@ from aiogram.filters import Filter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 
-import app.keyboard as kb
+import app.main_menu.keyboard as kb
 
 main_menu = Router()
 
@@ -17,7 +17,7 @@ class Admin(Filter):
 
 # Главное меню
 @main_menu.message(Admin(), Command('start'))
-@main_menu.callback_query(F.data == 'main_menu')
+@main_menu.callback_query(F.data == 'main:menu')
 async def main_menu_handler(event: Message | CallbackQuery, state: FSMContext, bot: Bot):
     await state.clear()
     if isinstance(event, Message):
