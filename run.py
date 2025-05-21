@@ -11,13 +11,14 @@ from app.main_menu.main_menu import main_menu
 
 from app.main_menu.products.products_menu import products_menu
 
-from app.main_menu.sessions.downloading.order_download import order_download
-from app.main_menu.sessions.orders_menu import orders_menu
-from app.main_menu.sessions.order_changing.change_order import change_order
-from app.main_menu.sessions.creation.order_creation import order_creation
-from app.main_menu.sessions.processing.order_processing import order_processing
-from app.main_menu.sessions.completed.completed_orders import completed_orders
-from app.main_menu.sessions.statistics.session_stats import session_stats
+from app.main_menu.sessions.session.order_downloading.order_downloading import order_downloading
+from app.main_menu.sessions.sessions_menu import sessions_menu
+from app.main_menu.sessions.session.session_menu import session_menu
+from app.main_menu.sessions.session.order_changing.order_changing import order_changing
+from app.main_menu.sessions.session.order_creation.order_creation import order_creation
+from app.main_menu.sessions.session.order_processing.order_processing import order_processing
+from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders
+from app.main_menu.sessions.session.session_stats.session_stats import session_stats
 
 from app.database.models import async_main
 from app.middlewares import MessagesRemover
@@ -29,14 +30,15 @@ async def main():
     dp = Dispatcher(storage=RedisStorage(redis))
     dp.message.middleware(MessagesRemover())
     dp.include_routers(main_menu,
+                       sessions_menu,
                        products_menu,
-                       orders_menu,
+                       session_menu,
                        order_creation,
                        order_processing,
-                       change_order,
+                       order_changing,
                        completed_orders,
                        session_stats,
-                       order_download,
+                       order_downloading,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

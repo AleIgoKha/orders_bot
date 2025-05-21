@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 
-import app.main_menu.sessions.statistics.keyboard as kb
+import app.main_menu.sessions.session.session_stats.keyboard as kb
 from app.database.requests import get_session_items_stats, get_orders, get_session
 
 session_stats = Router()

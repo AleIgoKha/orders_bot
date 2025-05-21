@@ -11,11 +11,8 @@ class Product(StatesGroup):
     disc = State()
 
 class Session(StatesGroup):
-    date = State()
-    date_error = State()
-    # with_time = State() в будущем можно будет создавать сессии с привязкой ко времени и без привязки ко времени
-    place = State()
-    method = State()
+    name = State()
+    description = State()
     
 class Order(StatesGroup):
     client_name = State()

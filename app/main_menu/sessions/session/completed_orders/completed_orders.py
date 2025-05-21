@@ -2,9 +2,9 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-import app.main_menu.sessions.completed.keyboard as kb
+import app.main_menu.sessions.session.completed_orders.keyboard as kb
 from app.database.requests import get_orders_items
-from app.main_menu.sessions.orders_menu import back_to_orders_menu_handler
+from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items
 
 completed_orders = Router()
@@ -80,7 +80,7 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
         await callback.answer(text='Нет готовых заказов', show_alert=True)
         # Если зашли не через callback completed_orders, а при вызове функции, то переходим в меню сессии
         if data['callback_name'] != 'completed_orders':
-            return await back_to_orders_menu_handler(callback, state)
+            return await back_to_session_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования
     
 
