@@ -8,14 +8,14 @@ from docx.shared import Pt, RGBColor, Cm
 from io import BytesIO
 from unidecode import unidecode
 
-import app.orders_menu.order_download.keyboard as kb
+import app.main_menu.sessions.session.order_downloading.keyboard as kb
 from app.com_func import group_orders_items
 from app.database.requests import get_orders_items, get_session, get_orders, get_session_items_stats
 
-order_download = Router()
+order_downloading = Router()
 
 
-@order_download.callback_query(F.data == 'session_downloads')
+@order_downloading.callback_query(F.data == 'session_downloads')
 async def session_downloads_handler(callback: CallbackQuery):
     await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ПУНКТ ДЛЯ ЗАГРУЗКИ</b> ❓',
                                      reply_markup=kb.session_downloads_menu,
@@ -23,15 +23,14 @@ async def session_downloads_handler(callback: CallbackQuery):
     
 
 # загружаем список заказов
-@order_download.callback_query(F.data == 'download_orders')
+@order_downloading.callback_query(F.data == 'download_orders')
 async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     # Загружаем все заказы сессии
     session_id = data['session_id']
     session_data = await get_session(session_id=session_id)
-    session_date = str(session_data.session_date).split(' ')[0]
-    session_place = session_data.session_place
+    session_name = session_data.session_name
     orders_items = await get_orders_items(session_id=session_id)
     orders_items_data = group_orders_items(orders_items)
 
@@ -66,7 +65,7 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     font.color.rgb = RGBColor(0, 0, 0)
 
     # наполняем документ
-    doc.add_heading(f"СПИСОК ЗАКАЗОВ СЕССИИ {session_date} - {session_place}", level=1)
+    doc.add_heading(f"СПИСОК ЗАКАЗОВ СЕССИИ - {session_name}", level=1)
     for order_items_data in orders_items_data:
         order_number = order_items_data['order_number']
         client_name = order_items_data['client_name']
@@ -148,7 +147,7 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     doc.save(file_bytes)
     file_bytes.seek(0)
     
-    filename = f'{session_date}_{unidecode(session_place)}_orders'.replace(' ', '_').replace('-', '_').lower()
+    filename = f'{unidecode(session_name)}_orders'.replace(' ', '_').replace('-', '_').lower()
     filename = re.sub(r"[^a-z0-9_]", "", filename)
     
     await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)
@@ -160,14 +159,13 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
 
 
 # Скачать статистику в виде docx файла
-@order_download.callback_query(F.data == 'stats_download')
+@order_downloading.callback_query(F.data == 'stats_download')
 async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
     # Запрашиваем данные для всех заказов сессии и данные сессии
     data = await state.get_data()
     session_id = data['session_id']
     session_data = await get_session(session_id=session_id)
-    session_date = str(session_data.session_date).split(' ')[0]
-    session_place = session_data.session_place
+    session_name = session_data.session_name
     orders_data = await get_orders(session_id)
     items_stats = await get_session_items_stats(session_id)
     
@@ -200,7 +198,7 @@ async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
     font.color.rgb = RGBColor(0, 0, 0)
 
     # наполняем документ
-    doc.add_heading(f"СТАТИСТИКА СЕССИИ {session_date} - {session_place}", level=1)
+    doc.add_heading(f"СТАТИСТИКА СЕССИИ - {session_name}", level=1)
     
     p = doc.add_paragraph()
     
@@ -254,7 +252,7 @@ async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
     
     
     # Убираем слэши, пробелы и делаем символы маленькими, переводим в нижний регистр и убираем специальные символы
-    filename = f'{session_date}_{unidecode(session_place)}_stats'.replace(' ', '_').replace('-', '_').lower()
+    filename = f'{unidecode(session_name)}_stats'.replace(' ', '_').replace('-', '_').lower()
     filename = re.sub(r"[^a-z0-9_]", "", filename)
     
     await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)

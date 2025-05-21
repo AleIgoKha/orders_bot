@@ -2,3 +2,6 @@
 .idea
 db.sqlite3
 tester.py
+cheese_orders_bot.backup
+alembic/
+alembic.ini

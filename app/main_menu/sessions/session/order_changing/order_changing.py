@@ -4,19 +4,19 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
-import app.orders_menu.keyboard as kb
+import app.main_menu.sessions.session.order_changing.keyboard as kb
 from app.states import Item, Order
 from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data
-from app.orders_menu.completed_orders.completed_orders import completed_orders_list_handler
-from app.orders_menu.order_processing.order_processing import orders_processing_list_handler
+from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders_list_handler
+from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_list_handler
 from app.com_func import group_orders_items, order_text
 
-change_order = Router()
+order_changing = Router()
 
 
 # Переходим в меню изменения данных заказа либо напрямую из меню с обрабатываемыми/готовыми заказами либо после изменения параметра
-@change_order.callback_query(F.data == 'change_order_data')
-@change_order.callback_query(F.data.endswith('_change_order'))
+@order_changing.callback_query(F.data == 'change_order_data')
+@order_changing.callback_query(F.data.endswith('_change_order'))
 async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
@@ -57,7 +57,7 @@ async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Заходим в меню управления данными товаров
-@change_order.callback_query(F.data == 'change_item_data')
+@order_changing.callback_query(F.data == 'change_item_data')
 async def change_item_data_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
@@ -73,7 +73,7 @@ async def change_item_data_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # инициируем изменение имени клиента и просим ввести новое
-@change_order.callback_query(F.data == 'change_client_name')
+@order_changing.callback_query(F.data == 'change_client_name')
 async def change_client_name_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='❓<b>ВВЕДИТЕ НОВОЕ ИМЯ КЛИЕНТА</b>❓',
                                             reply_markup=kb.back_to_change_order_data,
@@ -82,10 +82,10 @@ async def change_client_name_handler(callback: CallbackQuery, state: FSMContext)
 
 
 # Инициируем изменение количества товара или его удаление
-@change_order.callback_query(F.data.startswith('change_item_qty_page_'))
-@change_order.callback_query(F.data == 'delete_item')
-@change_order.callback_query(F.data == 'change_item_qty')
-@change_order.callback_query(F.data == 'change_item_qty_fact')
+@order_changing.callback_query(F.data.startswith('change_item_qty_page_'))
+@order_changing.callback_query(F.data == 'delete_item')
+@order_changing.callback_query(F.data == 'change_item_qty')
+@order_changing.callback_query(F.data == 'change_item_qty_fact')
 async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('change_item_qty_page_'):
         page = int(callback.data.split('_')[-1])
@@ -124,8 +124,8 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Инициируем добавление нового товара в заказ
-@change_order.callback_query(F.data.startswith('add_item_page_'))
-@change_order.callback_query(F.data == 'add_new_item')
+@order_changing.callback_query(F.data.startswith('add_item_page_'))
+@order_changing.callback_query(F.data == 'add_new_item')
 async def choose_new_item_handler(callback: CallbackQuery):
     if callback.data.startswith('add_item_page_'):
         page = int(callback.data.split('_')[-1])
@@ -137,7 +137,7 @@ async def choose_new_item_handler(callback: CallbackQuery):
 
 
 # Запрашиваем количество новодобавленного товара
-@change_order.callback_query(F.data.startswith('add_item_id_'))
+@order_changing.callback_query(F.data.startswith('add_item_id_'))
 async def add_new_item_handler(callback: CallbackQuery, state: FSMContext):
     item_id = int(callback.data.split('_')[-1])
     item_data =  await get_product(product_id=item_id) # сохраняем номер продукта, чтобы не сохранять все данные о нем, чтобы избежать неприятностей на случай отмены
@@ -156,7 +156,7 @@ async def add_new_item_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Запрашиваем новое количество товара
-@change_order.callback_query(F.data.startswith('change_item_qty_'))
+@order_changing.callback_query(F.data.startswith('change_item_qty_'))
 async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
@@ -194,11 +194,11 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Принимаем состояния для изменения данных и возвращаем меню для изменения данных
-@change_order.message(Order.change_disc)
-@change_order.message(Item.item_qty)
-@change_order.message(Order.change_client_name)
-@change_order.message(Item.change_item_qty)
-@change_order.message(Order.change_note)
+@order_changing.message(Order.change_disc)
+@order_changing.message(Item.item_qty)
+@order_changing.message(Order.change_client_name)
+@order_changing.message(Item.change_item_qty)
+@order_changing.message(Order.change_note)
 async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
     data = await state.get_data()
     state_name = await state.get_state()
@@ -351,7 +351,7 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
 
 
 # Удаляем товар после подтверждения
-@change_order.callback_query(F.data == 'confirm_delete_item')
+@order_changing.callback_query(F.data == 'confirm_delete_item')
 async def confirm_delete_item_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     item_id = [data['item_id']]
@@ -361,7 +361,7 @@ async def confirm_delete_item_handler(callback: CallbackQuery, state: FSMContext
 
 
 # Запрашиваем подтверждение на удаление заказа
-@change_order.callback_query(F.data == 'delete_order')
+@order_changing.callback_query(F.data == 'delete_order')
 async def delete_order_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='<b>Для удаления заказа введите</b> <i>УДАЛИТЬ</i>',
                                      parse_mode='HTML',
@@ -370,7 +370,7 @@ async def delete_order_handler(callback: CallbackQuery, state: FSMContext):
     
 
 # Просим подтвердить удаление после ввода слова
-@change_order.message(Order.delete_order)
+@order_changing.message(Order.delete_order)
 async def confirm_delete_order_handler(message: Message, state: FSMContext):
     data = await state.get_data()
     if message.text.upper() == 'УДАЛИТЬ':
@@ -391,7 +391,7 @@ async def confirm_delete_order_handler(message: Message, state: FSMContext):
 
 
 # Удаляем заказ и переходим к списку заказов или в меню сессии
-@change_order.callback_query(F.data == 'confirm_delete_order')
+@order_changing.callback_query(F.data == 'confirm_delete_order')
 async def finish_delete_order_handler(callback: CallbackQuery, state: FSMContext):
     await callback.answer(text='Заказ был успешно удален', show_alert=True)
     
@@ -419,14 +419,14 @@ async def finish_delete_order_handler(callback: CallbackQuery, state: FSMContext
 
     
 # Инициируем изменение статуса товара
-@change_order.callback_query(F.data == 'change_status')
+@order_changing.callback_query(F.data == 'change_status')
 async def change_status_handler(callback: CallbackQuery):
     await callback.message.edit_text(text='Текущий статус, заказа "Обработан". Желаете переветси статус на "Не обработан"?',
                                      reply_markup=kb.confirm_change_status)
 
   
 # сохраняем новый статус заказа и возвращаемся в меню с готовыми заказами
-@change_order.callback_query(F.data == 'confirm_change_status')
+@order_changing.callback_query(F.data == 'confirm_change_status')
 async def confirm_change_status_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     order_id = data['order_id']
@@ -437,7 +437,7 @@ async def confirm_change_status_handler(callback: CallbackQuery, state: FSMConte
 
 
 # инициируем изменение комментария
-@change_order.callback_query(F.data == 'change_note')
+@order_changing.callback_query(F.data == 'change_note')
 async def change_note_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
@@ -456,7 +456,7 @@ async def change_note_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Удаление комментария
-@change_order.callback_query(F.data == 'note_removal_from_order')
+@order_changing.callback_query(F.data == 'note_removal_from_order')
 async def confirm_change_note(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
@@ -467,7 +467,7 @@ async def confirm_change_note(callback: CallbackQuery, state: FSMContext):
     
     
 # Инициируем изменение скидки на заказ
-@change_order.callback_query(F.data == 'change_order_disc')
+@order_changing.callback_query(F.data == 'change_order_disc')
 async def change_item_disc_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='❗ <b>ВВЕДИТЕ РАЗМЕР СКИДКИ</b> ❗\n\n' \
                                         'Значение скидки должно быть в диапазоне от от 0 до 100 процентов',
@@ -477,9 +477,9 @@ async def change_item_disc_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Инициируем выбор товаров для изменения вакуума
-@change_order.callback_query(F.data.startswith('change_vacc_page_'))
-@change_order.callback_query(F.data == 'change_delete_item_vacc')
-@change_order.callback_query(F.data == 'change_add_item_vacc')
+@order_changing.callback_query(F.data.startswith('change_vacc_page_'))
+@order_changing.callback_query(F.data == 'change_delete_item_vacc')
+@order_changing.callback_query(F.data == 'change_add_item_vacc')
 async def change_vacc_to_order_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('change_vacc_page_'):
         page = int(callback.data.split('_')[-1])
@@ -519,8 +519,8 @@ async def change_vacc_to_order_handler(callback: CallbackQuery, state: FSMContex
             
 
 # Сохраняем обновленные данные по вакуумной упаковке
-@change_order.callback_query(F.data.startswith('change_vacc_item_'))
-@change_order.callback_query(F.data == 'change_vacc_all')
+@order_changing.callback_query(F.data.startswith('change_vacc_item_'))
+@order_changing.callback_query(F.data == 'change_vacc_all')
 async def apply_change_vacc_to_order_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     from_callback = data['from_callback']

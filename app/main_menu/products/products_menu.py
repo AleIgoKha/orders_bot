@@ -3,20 +3,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
-import app.products_menu.keyboard as kb
+import app.main_menu.products.keyboard as kb
 from app.states import Product
 from app.database.requests import add_product, get_products, get_product, change_product_data, delete_product
 
 products_menu = Router()
-
-
-# Раздел товаров
-@products_menu.callback_query(F.data == 'products_menu')
-async def products_menu_handler(callback: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await callback.message.edit_text(text='🧀 <b>МЕНЮ ТОВАРОВ</b> 🧀',
-                                     reply_markup=kb.products_menu,
-                                     parse_mode='HTML')
 
 
 # Добавление нового товара
@@ -85,6 +76,7 @@ async def product_price(message: Message, state: FSMContext):
         except TelegramBadRequest:
             return None
         
+    await state.set_state(None)
     await state.update_data(product_price=message.text)
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                     message_id=data['message_id'],
@@ -97,17 +89,18 @@ async def product_price(message: Message, state: FSMContext):
 # добавляем товары в базу данных
 @products_menu.callback_query(F.data == 'product_confirmation')
 async def product_confirmation(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
     data = await state.get_data() 
     product_data = {'product_name': data['product_name'],
                     'product_unit': data['product_unit'],
                     'product_price': data['product_price']}
     await add_product(product_data)
     await callback.answer('Продукт успешно добавлен в базу', show_alert=True)
-    await products_menu_handler(callback, state)
+    await list_product_handler(callback)
     
 
 # Инициируем просмотр товаров
-@products_menu.callback_query(F.data == 'list_product')
+@products_menu.callback_query(F.data == 'products:list')
 async def list_product_handler(callback: CallbackQuery):
     products_data = await get_products()
     
@@ -268,4 +261,4 @@ async def confirm_delete_product_handler(callback: CallbackQuery, state: FSMCont
     product_id = data['product_id']
     await delete_product(product_id=product_id)
     await callback.answer(text='Продукт успешно удален из базы данных', show_alert=True)
-    await products_menu_handler(callback, state)
+    await list_product_handler(callback)

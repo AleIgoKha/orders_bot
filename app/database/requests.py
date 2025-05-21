@@ -20,9 +20,8 @@ async def add_product(session, product_data):
 
 @connection
 async def add_session(session, session_data):
-    session.add(Session(session_date=session_data['session_date'],
-                        session_place=session_data['session_place'],
-                        session_method=session_data['session_method']))
+    session.add(Session(session_name=session_data['session_name'],
+                        session_descr=session_data['session_descr']))
     await session.commit()
     
 
@@ -59,7 +58,7 @@ async def add_order_items(session, items_data):
 
 @connection
 async def get_sessions(session):
-    result = await session.scalars(select(Session).order_by(desc(Session.session_date)))
+    result = await session.scalars(select(Session).order_by(asc(Session.session_name)))
     return result.all()
 
 @connection

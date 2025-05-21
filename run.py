@@ -7,19 +7,18 @@ from aiogram.fsm.storage.redis import RedisStorage
 from dotenv import load_dotenv
 
 from app.message_remover import messages_remover
-from app.main_menu import main_menu
+from app.main_menu.main_menu import main_menu
 
-from app.products_menu.products_menu import products_menu
+from app.main_menu.products.products_menu import products_menu
 
-from app.orders_menu.order_download.order_download import order_download
-from app.orders_menu.orders_menu import orders_menu
-from app.orders_menu.change_order import change_order
-from app.orders_menu.order_creation.order_creation import order_creation
-from app.orders_menu.order_processing.order_processing import order_processing
-from app.orders_menu.completed_orders.completed_orders import completed_orders
-from app.orders_menu.session_stats.session_stats import session_stats
-
-from app.stats_menu.stats_menu import stats_menu
+from app.main_menu.sessions.session.order_downloading.order_downloading import order_downloading
+from app.main_menu.sessions.sessions_menu import sessions_menu
+from app.main_menu.sessions.session.session_menu import session_menu
+from app.main_menu.sessions.session.order_changing.order_changing import order_changing
+from app.main_menu.sessions.session.order_creation.order_creation import order_creation
+from app.main_menu.sessions.session.order_processing.order_processing import order_processing
+from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders
+from app.main_menu.sessions.session.session_stats.session_stats import session_stats
 
 from app.database.models import async_main
 from app.middlewares import MessagesRemover
@@ -31,15 +30,15 @@ async def main():
     dp = Dispatcher(storage=RedisStorage(redis))
     dp.message.middleware(MessagesRemover())
     dp.include_routers(main_menu,
+                       sessions_menu,
                        products_menu,
-                       orders_menu,
-                       stats_menu,
+                       session_menu,
                        order_creation,
                        order_processing,
-                       change_order,
+                       order_changing,
                        completed_orders,
                        session_stats,
-                       order_download,
+                       order_downloading,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

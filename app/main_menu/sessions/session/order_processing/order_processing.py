@@ -4,10 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
-import app.orders_menu.order_processing.keyboard as kb
+import app.main_menu.sessions.session.order_processing.keyboard as kb
 from app.states import Item
 from app.database.requests import get_orders_items, get_order_items, get_item, change_item_data, change_order_data
-from app.orders_menu.orders_menu import back_to_orders_menu_handler
+from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items, order_text
 
 order_processing = Router()
@@ -33,7 +33,7 @@ async def orders_processing_list_handler(callback: CallbackQuery, state: FSMCont
         await callback.answer(text='Нет заказов для обработки', show_alert=True)
         # Если зашли не через callback order_processing, а при вызове функции, то переходим в меню сессии
         if data['callback_name'] != 'order_processing':
-            return await back_to_orders_menu_handler(callback, state)
+            return await back_to_session_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования
 
 

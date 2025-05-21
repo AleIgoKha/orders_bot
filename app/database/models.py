@@ -30,9 +30,12 @@ class Session(Base):
     __tablename__ = 'sessions'
     
     session_id: Mapped[int] = mapped_column(primary_key=True)
-    session_date: Mapped[datetime] = mapped_column(DateTime)
-    session_place: Mapped[str] = mapped_column(String)
-    session_method: Mapped[str] = mapped_column(String(20))
+    # session_date: Mapped[datetime] = mapped_column(DateTime)
+    # session_place: Mapped[str] = mapped_column(String)
+    # session_method: Mapped[str] = mapped_column(String(20))
+    session_name: Mapped[str] = mapped_column(String, nullable=False)
+    session_descr: Mapped[str] = mapped_column(String, nullable=True)
+    session_arch: Mapped[bool] = mapped_column(Boolean, default=False)
     
 class Order(Base):
     __tablename__ = 'orders'

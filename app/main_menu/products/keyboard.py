@@ -4,32 +4,33 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 products_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧀 Создать товар', callback_data='add_product')],
+
     [InlineKeyboardButton(text='📙 Просмотр товаров', callback_data='list_product')],
-    [InlineKeyboardButton(text='◀️ Назад', callback_data='main_menu')]
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='main:menu')]
 ])
 
 
 product_confirmation = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='✅ Подтвердить', callback_data='product_confirmation')],
     [InlineKeyboardButton(text='✍ Изменить', callback_data='add_product')],
-    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products_menu')]
+    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products:list')]
 ])
 
 product_units = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='кг', callback_data='кг')],
     [InlineKeyboardButton(text='шт.', callback_data='шт.')],
-    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products_menu')]
+    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products:list')]
 ])
 
 product_cancellation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products_menu')]
+    [InlineKeyboardButton(text='❌ Отменить создание товара', callback_data='products:list')]
 ])
 
 
 list_product_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🧀 Новый товар', callback_data='add_product')],
     [InlineKeyboardButton(text='✍ Изменить товар', callback_data='change_product_data')],
-    [InlineKeyboardButton(text='◀️ Назад', callback_data='products_menu')]
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='main:menu')]
 ])
 
 # выбор продукта для изменения
@@ -54,7 +55,7 @@ def choose_product(products: list, page: int = 1, products_per_page: int = 8):
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"products_menu_product_page_{page - 1}")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='list_product'))
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='products:list'))
     
     if end < len(products):
         navigation_buttons.append(
@@ -72,7 +73,7 @@ change_product_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📐 Изменить единицу измерения', callback_data='change_product_unit')],
     [InlineKeyboardButton(text='💰 Изменить стоимость', callback_data='change_product_price')],
     [InlineKeyboardButton(text='🗑 Удалить товар', callback_data='delete_product')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='list_product')]
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='products:list')]
 ])
 
 # кнопка назад при имзенения параметра товара
