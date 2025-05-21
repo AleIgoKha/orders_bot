@@ -3,3 +3,4 @@ __pycache__/
 .env
 db.sqlite3
 tester.py
+cheese_orders_bot.backup
