@@ -99,9 +99,23 @@ async def add_session_descr_handler(callback: CallbackQuery, state: FSMContext):
         text += f'.\n\n<b>Текущее описание сессии</b>\n<blockquote expandable>{session_descr}</blockquote>'
     
     await callback.message.edit_text(text=text,
-                                     reply_markup=kb.cancel_change_session,
+                                     reply_markup=kb.cancel_change_descr_session,
                                      parse_mode='HTML')
     await state.set_state(Session.description)
+
+
+# Удаляем описание сессии
+@sessions_menu.callback_query(F.data == 'sessions:delete_descr')
+async def change_session_descr_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    data_refreshed = {
+        'message_id': data['message_id'],
+        'chat_id': data['chat_id'],
+        'session_name': data['session_name'],
+        }
+    await state.clear()
+    await state.update_data(data_refreshed)
+    await new_session_menu_handler(callback, state)
 
 
 # Инициируем изменение названия сессии

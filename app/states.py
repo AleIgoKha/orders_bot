@@ -12,7 +12,10 @@ class Product(StatesGroup):
 
 class Session(StatesGroup):
     name = State()
+    change_name = State()
     description = State()
+    change_description = State()
+    delete = State()
     
 class Order(StatesGroup):
     client_name = State()
