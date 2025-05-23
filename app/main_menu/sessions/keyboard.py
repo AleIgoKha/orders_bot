@@ -1,12 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.database.requests import get_sessions
+from app.database.requests import get_sessions, get_orders
 
 
 # Функция для создания клавиатуры-списка сессий с пагинацией
 async def choose_session(page: int = 1, sessions_per_page: int = 8):
     sessions = await get_sessions()
+    sessions = [session for session in sessions if not session.session_arch]
     session_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * sessions_per_page
@@ -14,26 +15,33 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
     current_sessions = sessions[start:end]
     
     for session in current_sessions:
-        text = f"{session.session_name} (0/0)"
+        orders = await get_orders(session_id=session.session_id)
+        orders_number = len([order for order in orders if not order[0].order_completed])
+        text = f"{session.session_name} ({orders_number})"
         callback_data = f"session:session_id_{session.session_id}"
         session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    session_keyboard.add(InlineKeyboardButton(text='➕ Новая сессия', callback_data='sessions:new_session'))
-    
+        
     session_keyboard.adjust(1)
+    
+    additional_buttons = []
+    
+    additional_buttons.append(InlineKeyboardButton(text='➕ Новая сессия', callback_data='sessions:new_session'))
+    additional_buttons.append(InlineKeyboardButton(text='🗄 Архив сессий', callback_data='sessions:archive'))
+    
+    session_keyboard.row(*additional_buttons)
     
     navigation_buttons = []
     
     if page > 1:
         navigation_buttons.append(
-            InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"session_page_{page - 1}")
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"session_page_{page - 1}")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='main:menu'))
+    navigation_buttons.append(InlineKeyboardButton(text='🏠 В главное меню', callback_data='main:menu'))
     
     if end < len(sessions):
         navigation_buttons.append(
-            InlineKeyboardButton(text="Более ранние ➡️", callback_data=f"session_page_{page + 1}")
+            InlineKeyboardButton(text="Вперед ➡️", callback_data=f"session_page_{page + 1}")
         )
         
     if navigation_buttons:
@@ -74,3 +82,41 @@ cancel_change_descr_session = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🗑 Удалить описание', callback_data='sessions:delete_descr')],
     [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:new_session_menu')]
 ])
+
+
+# выбор архивной сессии
+async def choose_arch_session(page: int = 1, sessions_per_page: int = 8):
+    sessions = await get_sessions()
+    sessions = [session for session in sessions if session.session_arch]
+    session_keyboard = InlineKeyboardBuilder()
+
+    
+    start = (page - 1) * sessions_per_page
+    end = start + sessions_per_page
+    current_sessions = sessions[start:end]
+    
+    for session in current_sessions:
+        text = f"{session.session_name}"
+        callback_data = f"session:session_id_{session.session_id}"
+        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+        
+    session_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"arch_session_page_{page - 1}")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='🏠 В главное меню', callback_data='sessions:choose_session'))
+    
+    if end < len(sessions):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Вперед ➡️", callback_data=f"arch_session_page_{page + 1}")
+        )
+        
+    if navigation_buttons:
+        session_keyboard.row(*navigation_buttons)
+
+    return session_keyboard.as_markup()
