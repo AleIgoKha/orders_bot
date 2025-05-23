@@ -31,7 +31,7 @@ async def choose_session_handler(callback: CallbackQuery, state: FSMContext):
         page = int(callback.data.split('_')[-1])
     else:
         page = 1
-    await callback.message.edit_text('❓ <b>Выберите сессию из списка ниже</b>',
+    await callback.message.edit_text('🗂 <b>МЕНЮ СЕССИЙ</b>',
                                      reply_markup=await kb.choose_session(page=page),
                                      parse_mode='HTML')
 
@@ -144,7 +144,21 @@ async def confirm_new_session_handler(callback: CallbackQuery, state: FSMContext
 
 # Отмена создания сессии
 @sessions_menu.callback_query(F.data == 'sessions:confirm_cancel_new_session')
-async def confirm_new_session_handler(callback: CallbackQuery, state: FSMContext):
+async def confirm_new_session_handler(callback: CallbackQuery):
     await callback.message.edit_text(text='⁉️ <b>Вы уверены, что хотите отменить создание сессии?</b>',
                                      reply_markup=kb.confirm_cancel_new_session,
+                                     parse_mode='HTML')
+    
+    
+# архив сессий
+@sessions_menu.callback_query(F.data.startswith('arch_session_page_'))
+@sessions_menu.callback_query(F.data == 'sessions:archive')
+async def archive_handler(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    if callback.data.startswith('arch_session_page_'):
+        page = int(callback.data.split('_')[-1])
+    else:
+        page = 1
+    await callback.message.edit_text('🗄 <b>АРХИВ СЕССИЙ</b>',
+                                     reply_markup=await kb.choose_arch_session(page=page),
                                      parse_mode='HTML')

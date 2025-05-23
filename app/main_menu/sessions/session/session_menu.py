@@ -13,9 +13,24 @@ session_menu = Router()
 
 
 # функция для формирования сообщения меню сессии
-def session_menu_text(data):
-    session_name = data['session_name']
-    session_descr = data['session_descr']
+async def session_menu_text(data, state):
+    # Для начала обновляем контекст, для актуализации данных из базы
+    session_id = data['session_id']
+    session_data = await get_session(session_id=session_id)
+    await state.clear()
+    data_refreshed = {
+        'session_id': session_data.session_id,
+        'session_name': session_data.session_name,
+        'session_descr': session_data.session_descr,
+        'session_arch': session_data.session_arch,
+        'message_id': data['message_id'],
+        'chat_id': data['chat_id']
+        }
+    await state.update_data(data_refreshed)
+    
+    
+    session_name = data_refreshed['session_name']
+    session_descr = data_refreshed['session_descr']
     
     text = f'📋 <b>{session_name.upper()}</b>'
     if session_descr:
@@ -24,6 +39,7 @@ def session_menu_text(data):
     return text
 
 
+# функция для формирования сообщения меню настроек сессии
 async def session_settings_menu_text(data, state):
     # Для начала обновляем контекст, для актуализации данных из базы
     session_id = data['session_id']
@@ -58,32 +74,13 @@ async def session_settings_menu_text(data, state):
 # Заходим в меню выбранной сеществующей сессии
 @session_menu.callback_query(F.data.startswith('session:session_id_'))
 async def session_menu_handler(callback: CallbackQuery, state: FSMContext):
-    # Если только зашли в сессию впервые, то сохраняем данные делая запрос в базу данных
     if callback.data.startswith('session:session_id_'):
-        await state.clear()
         session_id = int(callback.data.split('_')[-1])
-        session_data = await get_session(session_id)
         await state.update_data(session_id=session_id,
-                                session_name=session_data.session_name,
-                                session_descr=session_data.session_descr,
                                 message_id=callback.message.message_id,
                                 chat_id=callback.message.chat.id)
-    # Если зашли в меню после сохранения заказа, то пересохраняем только необходимые данные
-    else:
-        data = await state.get_data()
-        data_refreshed = {
-                'session_id': data['session_id'],
-                'session_name': data['session_name'],
-                'session_descr': data['session_descr'],
-                'message_id': data['message_id'],
-                'chat_id': data['chat_id']
-                }
-        await state.clear()
-        await state.update_data(data_refreshed)
-        
     data = await state.get_data()
-    text = session_menu_text(data)
-        
+    text = await session_menu_text(data, state)
     await callback.message.edit_text(text=text,
                                     reply_markup=kb.session_menu,
                                     parse_mode='HTML')
@@ -114,26 +111,15 @@ async def back_to_session_menu_handler(callback: CallbackQuery, state: FSMContex
         await callback.bot.delete_message(chat_id=data['chat_id'],
                                           message_id=callback.message.message_id)
         
-        text = session_menu_text(data)
+        text = await session_menu_text(data, state)
         message = await callback.bot.send_message(chat_id=data['chat_id'],
                                         text=text,
                                         reply_markup=kb.session_menu,
                                         parse_mode='HTML')
         await state.update_data(message_id=message.message_id)
     else:
-    # Перезаписываем только данные о сессии
-        data_refreshed = {
-                'session_id': data['session_id'],
-                'session_name': data['session_name'],
-                'session_descr': data['session_descr'],
-                'message_id': data['message_id'],
-                'chat_id': data['chat_id']
-                }
-        await state.clear()
-        await state.update_data(data_refreshed)
-            
         data = await state.get_data()
-        text = session_menu_text(data)
+        text = await session_menu_text(data, state)
 
         await callback.message.edit_text(text=text,
                                         reply_markup=kb.session_menu,
