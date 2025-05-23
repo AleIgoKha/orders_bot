@@ -8,8 +8,3 @@ class MessagesRemover(BaseMiddleware):
             await event.delete()
             data['removed'] = True
         return await handler(event, data)
-    
-# class DoubleStartPreventer(BaseMiddleware):
-#     async def __call__(self, handler, event, data):
-#         if event.text != '/start':
-            

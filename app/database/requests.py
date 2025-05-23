@@ -128,6 +128,13 @@ async def get_orders(session, session_id):
     
     return order_data.all()
 
+# изменение данных сессии
+@connection
+async def change_session_data(session, session_id, session_data):
+    await session.execute(update(Session).where(Session.session_id == session_id).values(session_data))
+    await session.commit()
+
+
 @connection
 async def change_item_data(session, item_id, item_data):
     await session.execute(update(Item).where(Item.item_id == item_id).values(item_data))
@@ -167,6 +174,11 @@ async def delete_order(session, order_id):
 @connection
 async def delete_product(session, product_id):
     await session.execute(delete(Product).where(Product.product_id == product_id))
+    await session.commit()
+    
+@connection
+async def delete_session(session, session_id):
+    await session.execute(delete(Session).where(Session.session_id == session_id))
     await session.commit()
     
     

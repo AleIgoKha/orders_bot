@@ -68,3 +68,9 @@ confirm_cancel_new_session = InlineKeyboardMarkup(inline_keyboard=[
 cancel_change_session = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:new_session_menu')]
 ])
+
+
+cancel_change_descr_session = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🗑 Удалить описание', callback_data='sessions:delete_descr')],
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:new_session_menu')]
+])
