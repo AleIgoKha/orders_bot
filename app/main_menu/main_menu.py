@@ -35,8 +35,14 @@ async def start_handler(message: Message, state: FSMContext, bot: Bot):
             else:
                 break
 
+# Возвращение через колбэк в главное меню или при вызове функции
 @main_menu.callback_query(F.data == 'main:menu')
 async def main_menu_handler(callback:CallbackQuery, state: FSMContext,):
     await state.clear()
     await callback.message.edit_text(text='🏠 <b>ГЛАВНОЕ МЕНЮ</b>', reply_markup=kb.main_menu, parse_mode='HTML')
         
+
+# # быстрое создание нового заказа
+# @main_menu.callback_query(F.data == 'main:new_order')
+# async def new_order_handler(callback:CallbackQuery, state: FSMContext,):
+    

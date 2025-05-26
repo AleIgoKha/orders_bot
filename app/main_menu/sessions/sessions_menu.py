@@ -162,3 +162,4 @@ async def archive_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text('🗄 <b>АРХИВ СЕССИЙ</b>',
                                      reply_markup=await kb.choose_arch_session(page=page),
                                      parse_mode='HTML')
+    

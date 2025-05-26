@@ -20,10 +20,10 @@ def order_message(order_items_data):
     if items_list: # Проверяем пуст ли заказ
         for item in items_list:
             item_name = order_items_data[item]['item_name']
-            item_price = order_items_data[item]['item_price']
-            item_qty = order_items_data[item]['item_qty']
+            item_price = float(order_items_data[item]['item_price'])
+            item_qty = float(order_items_data[item]['item_qty'])
             item_unit = order_items_data[item]['item_unit']
-            item_qty_fact = order_items_data[item]['item_qty_fact']
+            item_qty_fact = float(order_items_data[item]['item_qty_fact'])
             item_vacc = order_items_data[item]['item_vacc']
                     
             
@@ -40,7 +40,7 @@ def order_message(order_items_data):
                 vacc_price = 0
                 
             text += f'{item_name}{item_vacc}'
-            item_price = round(item_qty_fact * float(item_price) + vacc_price)
+            item_price = round(item_qty_fact * item_price + vacc_price)
             if item_unit == 'кг': # Переводим килограмы в граммы
                 text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
             else:
