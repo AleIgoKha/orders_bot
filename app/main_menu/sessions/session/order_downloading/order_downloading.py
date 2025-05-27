@@ -79,10 +79,10 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
         if items_list: # Проверяем пуст ли заказ
             for item in items_list:
                 item_name = order_items_data[item]['item_name']
-                item_price = order_items_data[item]['item_price']
-                item_qty = order_items_data[item]['item_qty']
+                item_price = float(order_items_data[item]['item_price'])
+                item_qty = float(order_items_data[item]['item_qty'])
                 item_unit = order_items_data[item]['item_unit']
-                item_qty_fact = order_items_data[item]['item_qty_fact']
+                item_qty_fact = float(order_items_data[item]['item_qty_fact'])
                 item_vacc = order_items_data[item]['item_vacc']
                 
                 if item_vacc:

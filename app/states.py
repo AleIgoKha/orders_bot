@@ -18,6 +18,8 @@ class Session(StatesGroup):
     delete = State()
     
 class Order(StatesGroup):
+    client_phone = State()
+    change_client_phone = State()
     client_name = State()
     change_client_name = State()
     delete_order = State()
