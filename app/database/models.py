@@ -44,7 +44,6 @@ class Order(Base):
     session_id: Mapped[int] = mapped_column(ForeignKey('sessions.session_id', ondelete="CASCADE"))
     order_number: Mapped[int] = mapped_column(Integer)
     client_phone: Mapped[str | None] = mapped_column(String, nullable=True)
-    creation_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), server_default=text("CURRENT_TIMESTAMP"))
     client_name: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_method: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_place: Mapped[str | None] = mapped_column(String, nullable=True)

@@ -66,6 +66,13 @@ async def get_session(session, session_id):
     order_session = await session.scalar(select(Session).where(Session.session_id == session_id))
     return order_session
 
+
+@connection
+async def get_session_by_name(session, session_name):
+    order_session = await session.scalar(select(Session).where(Session.session_name == session_name))
+    return order_session
+
+
 @connection
 async def get_products(session):
     result = await session.scalars(select(Product).order_by(asc(Product.product_name)))

@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # меню сессии
 session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
+    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='session:new_order')],
     [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
     [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
     [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
