@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
+from datetime import datetime
 
 import app.main_menu.sessions.session.order_creation.keyboard as kb
 from app.main_menu.sessions.session.session_menu import session_menu_handler
@@ -76,7 +77,12 @@ async def new_order_handler(callback: CallbackQuery, state: FSMContext):
         'chat_id': callback.message.chat.id,
         'message_id': callback.message.message_id,
         'session_id': session_id,
-        'session_name': session.session_name
+        'session_name': session.session_name,
+        'delivery_price': None,
+        'issue_method': 'Самовывоз',
+        'issue_place': None,
+        'issue_datetime': None,
+        'delivery_price': None
     }
     
     await state.update_data(initial_data)
@@ -176,14 +182,8 @@ async def order_menu_handler(message: Message, state: FSMContext):
 
 
 # Возвращение в меню с созданием заказа
-@order_creation.callback_query(F.data.startswith('new_order:change_session_id_'))
 @order_creation.callback_query(F.data == 'new_order:menu')
-async def back_to_order_creation_handler(callback: CallbackQuery, state: FSMContext):
-    if callback.data.startswith('new_order:change_session_id_'):
-        session_id = int(callback.data.split('_')[-1])
-        session = await get_session(session_id)
-        await state.update_data(session_id=session_id, session_name=session.session_name)
-    
+async def back_to_order_creation_handler(callback: CallbackQuery, state: FSMContext):    
     await state.set_state(None)
     data = await state.get_data()
     text = order_text(data)
@@ -290,8 +290,14 @@ async def product_qty_handler(message: Message, state: FSMContext):
 
 
 # Инициализируем изменение в заказе
+@order_creation.callback_query(F.data.startswith('new_order:change_session_id_'))
 @order_creation.callback_query(F.data == 'new_order:change_order')
-async def change_order_handler(callback: CallbackQuery, state: FSMContext):   
+async def change_order_handler(callback: CallbackQuery, state: FSMContext):
+    if callback.data.startswith('new_order:change_session_id_'):
+        session_id = int(callback.data.split('_')[-1])
+        session = await get_session(session_id)
+        await state.update_data(session_id=session_id, session_name=session.session_name)
+        
     data = await state.get_data()
     text = order_text(data)
     await callback.message.edit_text(text=text,
@@ -616,42 +622,6 @@ async def add_vacc_item_handler(callback: CallbackQuery, state: FSMContext):
         await change_order_handler(callback)
     
 
-# Временно отключено
-# Инициируем добавление дискаунта и предлагаем выбрать продукт которому дать скидку
-@order_creation.callback_query(F.data == 'add_disc_to_order')
-@order_creation.callback_query(F.data.startswith('add_disc_page_'))
-async def add_disc_to_order_handler(callback: CallbackQuery, state: FSMContext):
-    if callback.data.startswith('add_disc_page_'):
-        page = int(callback.data.split('_')[-1])
-    else:
-        page = 1
-    data = await state.get_data()
-    # получаем список словарей с информацией о товаре
-    products = {product:data[product] for product in data.keys() if product.startswith('product_data_')}
-    await callback.message.edit_text(text='<b>Выберите продукт указания скидки</b>',
-                                     reply_markup= await kb.choose_add_disc(products, page=page),
-                                     parse_mode='HTML')
-    
-
-# Запрашиваем ввод размера скидки
-@order_creation.callback_query(F.data.startswith('add_disc_item_'))
-@order_creation.callback_query(F.data == 'disc_all')
-async def add_disc_item_handler(callback: CallbackQuery, state: FSMContext):
-    from_callback = callback.data
-    await state.update_data(from_callback=from_callback)
-    
-    # Пока что отключено, по необходимости и неудобствам в связи с недоработкой
-    if from_callback != 'disc_all':
-        product_data_id = int(callback.data.split('_')[-1])
-        current_product = f'product_data_{product_data_id}'
-        await state.update_data(current_product=current_product)
-        
-    await callback.message.edit_text(text='<b>Введите размер скидки в процентах от 0 до 100</b>',
-                                    reply_markup=kb.back_to_order_changing,
-                                    parse_mode='HTML')
-    await state.set_state(Product.disc)
-
-
 # инициируем выбор новой сессии для ее смены
 @order_creation.callback_query(F.data.startswith('new_order:change_session_page_'))
 @order_creation.callback_query(F.data == 'new_order:change_session')
@@ -666,11 +636,242 @@ async def change_session_handler(callback: CallbackQuery, state: FSMContext):
                                             f'Текущая сессия - <b>{current_session}</b>',
                                      reply_markup=await kb.choose_session(page=page),
                                      parse_mode='HTML')
+
+
+# инициируем добавление доставки
+@order_creation.callback_query(F.data == 'new_order:add_delivery')
+async def add_delivery_handler(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(text='❓ <b>ВВЕДИТЕ СТОИМОСТЬ ДОСТАВКИ</b>\n\n' \
+                                            'Формат ввода данных: <i>123.45</i>',
+                                     reply_markup=kb.cancel_delivery_price,
+                                     parse_mode='HTML')
+    await state.set_state(Order.delivery_price)
+    print(await state.get_data())
     
 
+# принимаем стоимость доставки и просим ввести адресс
+@order_creation.message(Order.delivery_price)
+async def delivery_price_receiver_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+    try:
+        delivery_price = str(Decimal(message.text.replace(',', '.')))
+    except:
+        try:
+            await state.set_state(Order.delivery_price)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text='❗️ <b>НЕВЕРНЫЙ ФОРМАТ ВВОДА</b>\n\n'\
+                                            '❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>\n\n' \
+                                                'Формат ввода данных: <i>123.45</i>',
+                                        reply_markup=kb.cancel_delivery_address,
+                                        parse_mode='HTML')
+            return None
+        except TelegramBadRequest:
+            return None
+    
+    await state.update_data(delivery_price=delivery_price)
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text='❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>',
+                                        reply_markup=kb.cancel_delivery_address,
+                                        parse_mode='HTML')
+    await state.set_state(Order.issue_place)
+    print(await state.get_data())
+    
+
+# Принимаем адресс доставки и просим указать дату доставки
+@order_creation.message(Order.issue_place)
+async def issue_place_receiver_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+    issue_place = message.text
+    await state.update_data(issue_place=issue_place)
+    
+    now = datetime.now()
+    year = now.year
+    month = now.month
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text='❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+                                                'Дату можно ввести вручную в формате: <i>ДД-ММ-ГГГГ</i>',
+                                        reply_markup=kb.create_calendar_keyboard(year, month),
+                                        parse_mode='HTML')
+    await state.set_state(Order.issue_datetime)
+    print(await state.get_data())
+
+
+# Предлагаем выбрать дату доставки
+# добавление новой сессии
+@order_creation.callback_query(F.data.startswith('new_order:delivery:prev:'))
+@order_creation.callback_query(F.data.startswith('new_order:delivery:next:'))
+@order_creation.callback_query(F.data == 'new_order:delivery_date')
+async def new_session_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    now = datetime.now()
+    year = now.year
+    month = now.month
+    # Переключаем месяца вперед и назад
+    if callback.data.startswith('session:month'):
+        calendar_data = callback.data.split(':')
+        if calendar_data[2] == 'prev':
+            year = int(calendar_data[3])
+            month = int(calendar_data[4]) - 1
+            if month < 1:
+                month = 12
+                year -= 1
+        elif calendar_data[2] == 'next':
+            year = int(calendar_data[3])
+            month = int(calendar_data[4]) + 1
+            if month > 12:
+                month = 1
+                year += 1
+        await callback.message.edit_reply_markup(reply_markup=kb.create_calendar_keyboard(year, month))
+    else:
+        await callback.message.edit_text(text='❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+                                                'Дату можно ввести вручную в формате: <i>ДД-ММ-ГГГГ</i>',
+                                        reply_markup=kb.create_calendar_keyboard(year, month),
+                                        parse_mode='HTML')
+    await state.set_state(Order.issue_datetime)
+    print(await state.get_data())
+    
+    
+# Обработка и сохранение даты при нажатии на кнопку
+@order_creation.callback_query(F.data.startswith('new_order:delivery:date:'))
+async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
+    date_data = callback.data.split(':')[-3:]
+    issue_datetime = {
+        'year': date_data[0],
+        'month': date_data[1],
+        'day': date_data[2]
+    }
+    await state.update_data(issue_datetime)
+    await callback.message.edit_text(text='❓⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
+                                        'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                        'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                    reply_markup=kb.cancel_delivery_time,
+                                    parse_mode='HTML')
+    await state.set_state(Order.issue_time)
+    print(await state.get_data())
+    
+
+# Указание даты
+@order_creation.message(Order.issue_datetime)
+async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+    try:
+        date_comp = [int(_) for _ in message.text.split('-')]
+        if len(date_comp) != 3 or len(str(date_comp[2])) != 4:
+            raise ValueError('Неправильный формат')
+        issue_datetime = {
+            'year': date_comp[2],
+            'month': date_comp[1],
+            'day': date_comp[0]
+        }
+        datetime(**issue_datetime)
+        await state.update_data(issue_datetime=issue_datetime)
+        await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                            message_id=data['message_id'],
+                                            text='❓⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
+                                                'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                                'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                            reply_markup=kb.cancel_delivery_time,
+                                            parse_mode='HTML')
+        await state.set_state(Order.issue_time)
+    except:
+        try:
+            await state.set_state(Order.issue_datetime)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                message_id=data['message_id'],
+                                                text='❗ <b>НЕВЕРНО УКАЗАНА ДАТА</b>\n\n' \
+                                                    '❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+                                                    'Дату можно ввести вручную в формате:</b>\n<i>ДД-ММ-ГГГГ</i>',
+                                                reply_markup=kb.cancel_delivery_time,
+                                                parse_mode='HTML')
+            return None
+        except TelegramBadRequest:
+            return None
+    print(await state.get_data())
+
+
+# Принимаем время доставки заказа
+@order_creation.message(Order.issue_time)
+async def issue_time_receiver_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+    issue_time = message.text.replace(':', '')
+    try:
+        if len(issue_time) != 4:
+            raise(ValueError('Неправильный формат'))
+        issue_datetime = data['issue_datetime']
+        issue_datetime['hour'] = int(issue_time[:2])
+        issue_datetime['minute'] = int(issue_time[-2:])
+        datetime(**issue_datetime)
+        await state.update_data(issue_datetime=issue_datetime)
+    except:
+        try:
+            await state.set_state(Order.issue_time)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                message_id=data['message_id'],
+                                                text='❗ <b>НЕВЕРНО УКАЗАНО ВРЕМЯ</b>\n\n' \
+                                                    '⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
+                                                    'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                                    'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                                reply_markup=kb.cancel_delivery_time,
+                                                parse_mode='HTML')
+            return None
+        except TelegramBadRequest:
+            return None
+            
+    await state.update_data(issue_datetime=issue_datetime)
+    data = await state.get_data()
+    text = order_text(data)
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text=text,
+                                        reply_markup=kb.new_order_keyboard,
+                                        parse_mode='HTML')
+    print(await state.get_data())
 
 
 
+
+
+
+# # Временно отключено
+# # Инициируем добавление дискаунта и предлагаем выбрать продукт которому дать скидку
+# @order_creation.callback_query(F.data == 'add_disc_to_order')
+# @order_creation.callback_query(F.data.startswith('add_disc_page_'))
+# async def add_disc_to_order_handler(callback: CallbackQuery, state: FSMContext):
+#     if callback.data.startswith('add_disc_page_'):
+#         page = int(callback.data.split('_')[-1])
+#     else:
+#         page = 1
+#     data = await state.get_data()
+#     # получаем список словарей с информацией о товаре
+#     products = {product:data[product] for product in data.keys() if product.startswith('product_data_')}
+#     await callback.message.edit_text(text='<b>Выберите продукт указания скидки</b>',
+#                                      reply_markup= await kb.choose_add_disc(products, page=page),
+#                                      parse_mode='HTML')
+    
+
+# Запрашиваем ввод размера скидки
+# @order_creation.callback_query(F.data.startswith('add_disc_item_'))
+@order_creation.callback_query(F.data == 'disc_all')
+async def add_disc_item_handler(callback: CallbackQuery, state: FSMContext):
+    from_callback = callback.data
+    await state.update_data(from_callback=from_callback)
+    
+    # # Пока что отключено, по необходимости и неудобствам в связи с недоработкой
+    # if from_callback != 'disc_all':
+    #     product_data_id = int(callback.data.split('_')[-1])
+    #     current_product = f'product_data_{product_data_id}'
+    #     await state.update_data(current_product=current_product)
+        
+    await callback.message.edit_text(text='<b>Введите размер скидки в процентах от 0 до 100</b>',
+                                    reply_markup=kb.back_to_order_changing,
+                                    parse_mode='HTML')
+    await state.set_state(Product.disc)
 
 
 # Наданный момент работает только на весь заказ
