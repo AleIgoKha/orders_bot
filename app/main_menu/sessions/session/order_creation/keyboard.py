@@ -26,7 +26,7 @@ def client_name_cancelation(back_opt):
 new_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🧀 Добавить товар', callback_data='new_order:add_product')],
     [InlineKeyboardButton(text='📤 Добавить вакуумную упаковку', callback_data='add_vacc_to_order')],
-    [InlineKeyboardButton(text='🚚 Добавить доставку', callback_data='new_order:add_delivery')],
+    [InlineKeyboardButton(text='🛍 Выдача заказа', callback_data='new_order:add_delivery')],
     [InlineKeyboardButton(text='✍ Изменить заказ', callback_data='new_order:change_order')],
     [InlineKeyboardButton(text='✅ Сохранить заказ', callback_data='save_order')],
     [InlineKeyboardButton(text='❌ Отменить создание заказа', callback_data=f'confirm_order_cancelation')]
@@ -34,25 +34,38 @@ new_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 
 
 # отмена стоимости доставки
-cancel_delivery_price = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='new_order:menu')]
-])
+def cancel_delivery_price(issue_method):
+    callback_opt = 'new_order:delivery_date'
+    text_opt = '📅 К дате'
+    if issue_method != 'Самовывоз':
+        callback_opt = 'new_order:add_address'
+        text_opt = "📍 К адресу"
+        
+    cancel_delivery_price = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='🛍 Самовывоз', callback_data='new_order:self_pickup')],
+        [InlineKeyboardButton(text=f'{text_opt}', callback_data=f'{callback_opt}'),
+        InlineKeyboardButton(text='🛑 Завершить', callback_data='new_order:menu')]
+    ])
+                                                 
+    return cancel_delivery_price
 
 
 # отмена адресса доставки
 cancel_delivery_address = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='▶️ Пропустить', callback_data=f'new_order:delivery_date'),
-    InlineKeyboardButton(text='❌ Отмена', callback_data='new_order:menu')]
+    [InlineKeyboardButton(text='🗑 Очистить адресс', callback_data='new_order:delete_address')],
+    [InlineKeyboardButton(text='📅 К дате', callback_data='new_order:delivery_date'),
+    InlineKeyboardButton(text='🛑 Завершить', callback_data='new_order:menu')]
 ])
 
 # отмена времени доставки
 cancel_delivery_time = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='new_order:menu')]
+    [InlineKeyboardButton(text='🗑 Очистить время', callback_data='new_order:delete_time'),
+    InlineKeyboardButton(text='🛑 Завершить', callback_data='new_order:menu')]
 ])
 
 
 # Календарь для выбора даты
-def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+def create_calendar_keyboard(year: int, month: int, issue_datetime: dict) -> InlineKeyboardMarkup:
     """
     Creates an inline keyboard representing a calendar for the given year and month.
     """
@@ -94,10 +107,19 @@ def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
         keyboard.append(row)
         if day_counter > days_in_month:
             break
+    
+    additional_buttons = [
+        InlineKeyboardButton(text='🗑 Очистить дату', callback_data='new_order:delete_date')
+    ]
+    if issue_datetime:
+        additional_buttons.append(InlineKeyboardButton(text='⌚️ К времени', callback_data='new_order:skip_date'))
+    
+    
+    keyboard.append(additional_buttons)
 
     navigation_buttons = [
         InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"new_order:delivery:prev:{year}:{month}"),
-        InlineKeyboardButton(text="❌ Отмена", callback_data="new_order:menu"),
+        InlineKeyboardButton(text="🛑 Завершить", callback_data="new_order:menu"),
         InlineKeyboardButton(text="➡️ Позднее", callback_data=f"new_order:delivery:next:{year}:{month}"),
     ]
     keyboard.append(navigation_buttons)

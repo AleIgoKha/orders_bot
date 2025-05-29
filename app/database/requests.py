@@ -27,14 +27,7 @@ async def add_session(session, session_data):
 
 @connection
 async def add_order(session, order_data):
-    session.add(Order(order_completed=False,
-                    session_id=order_data['session_id'],
-                    client_name=order_data['client_name'],
-                    order_number=order_data['order_number'],
-                    order_note=order_data['order_note'],
-                    order_disc=order_data['order_disc']
-                    )
-                )
+    session.add(Order(**order_data))
     await session.commit()
 
 
@@ -46,7 +39,7 @@ async def add_order_items(session, items_data):
             item_unit=item_data['product_unit'],
             item_price=item_data['product_price'],
             item_qty=Decimal(item_data['product_qty']) if item_data['product_unit'] == 'шт.' else  (Decimal(item_data['product_qty']) / 1000), # переводим граммы в килограммы
-            item_qty_fact=0, # проверить когда буду переделывать базу данных, можно ли переделать
+            # item_qty_fact=0, # проверить когда буду переделывать базу данных, можно ли переделать
             item_disc=item_data['item_disc'],
             item_vacc=item_data['item_vacc']
         )

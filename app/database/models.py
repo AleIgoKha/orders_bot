@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import String, Numeric, ForeignKey, Boolean, Integer, DateTime, text
+from sqlalchemy import String, Numeric, ForeignKey, Boolean, Integer, DateTime, text, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -55,6 +55,7 @@ class Order(Base):
     order_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     order_issued: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE"))
     order_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped["Session"] = relationship(back_populates="orders")
     

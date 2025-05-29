@@ -30,10 +30,9 @@ def order_text(data):
         
     text += f'📂 Сессия - <b>{data['session_name']}</b>\n'
     
-    text += '\n🧀 Состав заказа:'
-            
-    
-    if products_list: 
+    if products_list:
+        text += '\n🧀 Состав заказа:\n'
+        
         for product in products_list:
             product_name = data[product]['product_name']
             product_qty = data[product]['product_qty']
@@ -50,11 +49,28 @@ def order_text(data):
             else:
                 item_vacc = ''
             
-            text += f'\n<b>{product_name}{item_vacc} - {product_qty} {product_unit_amend}</b>'
+            text += f'<b>{product_name}{item_vacc} - {product_qty} {product_unit_amend}</b>\n'
             
         if data['order_disc'] != 0:
-            text += f'\n\nСкидка на заказ - <b>{data['order_disc']} %</b>\n'
-        
+            text += f'\n🤑 Скидка на заказ - <b>{data['order_disc']} %</b>\n'
+    
+    text += f'\n🛍 Метод выдачи - <b>{data['issue_method']}</b>\n'
+    
+    issue_method = data['issue_method']
+    issue_opt = 'доставки'
+    if issue_method == 'Самовывоз':
+        issue_opt = 'выдачи'
+    
+    if data['issue_place']:
+        text += f'📍 Место доставки - <b>{data['issue_place']}</b>\n'
+    if data['delivery_price']:
+        text += f'💲 Стоимость доставки - <b>{data['delivery_price']} руб</b>\n'
+    if data['issue_datetime']:
+        text += f'📅 Дата {issue_opt} - <b>{data['issue_datetime']['day']:02d}-{data['issue_datetime']['month']:02d}-{data['issue_datetime']['year']}</b>\n'
+        if 'hour' in data['issue_datetime'].keys():
+            text += f'⌚️ Время {issue_opt} - <b>{data['issue_datetime']['hour']:02d}:{data['issue_datetime']['minute']:02d}</b>\n'
+
+    
     if data['order_note']:
         text += f'\n<b>📝 Комментарий к заказу</b>\n{data['order_note']}'
         
@@ -183,7 +199,23 @@ async def order_menu_handler(message: Message, state: FSMContext):
 
 # Возвращение в меню с созданием заказа
 @order_creation.callback_query(F.data == 'new_order:menu')
-async def back_to_order_creation_handler(callback: CallbackQuery, state: FSMContext):    
+@order_creation.callback_query(F.data == 'new_order:delete_time')
+@order_creation.callback_query(F.data == 'new_order:delete_date')
+async def back_to_order_creation_handler(callback: CallbackQuery, state: FSMContext):
+    # в случае удаления времени выдачи
+    if callback.data == 'new_order:delete_date':
+        await state.update_data(issue_datetime=None)
+    elif callback.data == 'new_order:delete_time':
+        data = await state.get_data()
+        issue_datetime = data['issue_datetime']
+        issue_datetime = {
+            'day': issue_datetime['day'],
+            'month': issue_datetime['month'],
+            'year': issue_datetime['year']
+        }
+        await state.update_data(issue_datetime=issue_datetime)
+        
+    
     await state.set_state(None)
     data = await state.get_data()
     text = order_text(data)
@@ -526,7 +558,11 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_number': order_number,
         'order_note': data['order_note'],
         'order_disc': data['order_disc'],
-        'order_completed': False
+        'order_completed': False,
+        'delivery_price': Decimal(data['delivery_price']) if data['delivery_price'] else None,
+        'issue_method': data['issue_method'],
+        'issue_place': data['issue_place'],
+        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else None
     }
     await add_order(order_data)
     
@@ -641,17 +677,35 @@ async def change_session_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем добавление доставки
 @order_creation.callback_query(F.data == 'new_order:add_delivery')
 async def add_delivery_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    delivery_price = data['delivery_price']
+    current_price = ''
+    if delivery_price:
+        current_price = f'Текущая стоимость доставки - <b>{delivery_price} руб.</b>\n\n'
+    
     await callback.message.edit_text(text='❓ <b>ВВЕДИТЕ СТОИМОСТЬ ДОСТАВКИ</b>\n\n' \
+                                            f'{current_price}' \
                                             'Формат ввода данных: <i>123.45</i>',
-                                     reply_markup=kb.cancel_delivery_price,
+                                     reply_markup=kb.cancel_delivery_price(data['issue_method']),
                                      parse_mode='HTML')
     await state.set_state(Order.delivery_price)
-    print(await state.get_data())
-    
+
 
 # принимаем стоимость доставки и просим ввести адресс
 @order_creation.message(Order.delivery_price)
 async def delivery_price_receiver_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+    issue_place = data['issue_place']
+    delivery_price = data['delivery_price']
+    current_address = ''
+    if issue_place:
+        current_address = f'Текущий адресс доставки - <b>{issue_place}</b>\n\n'
+        
+    current_price = ''
+    if delivery_price:
+        current_price = f'Текущая стоимость доставки - <b>{delivery_price} руб.</b>\n\n'
+        
+    
     await state.set_state(None)
     data = await state.get_data()
     try:
@@ -662,7 +716,8 @@ async def delivery_price_receiver_handler(message: Message, state: FSMContext):
             await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text='❗️ <b>НЕВЕРНЫЙ ФОРМАТ ВВОДА</b>\n\n'\
-                                            '❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>\n\n' \
+                                            '❓ <b>ВВЕДИТЕ СТОИМОСТЬ</b>\n\n' \
+                                            f'{current_price}' \
                                                 'Формат ввода данных: <i>123.45</i>',
                                         reply_markup=kb.cancel_delivery_address,
                                         parse_mode='HTML')
@@ -670,19 +725,46 @@ async def delivery_price_receiver_handler(message: Message, state: FSMContext):
         except TelegramBadRequest:
             return None
     
-    await state.update_data(delivery_price=delivery_price)
+    await state.update_data(delivery_price=delivery_price, issue_method='Доставка')
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
-                                        text='❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>',
+                                        text='❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>\n\n'
+                                            f'{current_address}',
                                         reply_markup=kb.cancel_delivery_address,
                                         parse_mode='HTML')
     await state.set_state(Order.issue_place)
-    print(await state.get_data())
+    
+
+# В случае пропуска указания стоимости доставки попадаем сюда
+@order_creation.callback_query(F.data == 'new_order:add_address')
+async def add_address_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    issue_place = data['issue_place']
+    current_address = ''
+    if issue_place:
+        current_address = f'Текущий адресс доставки - <b>{issue_place}</b>\n\n'
+    
+    await callback.message.edit_text(text='❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>\n\n'
+                                            f'{current_address}',
+                                        reply_markup=kb.cancel_delivery_address,
+                                        parse_mode='HTML')
+    await state.set_state(Order.issue_place)
+
     
 
 # Принимаем адресс доставки и просим указать дату доставки
 @order_creation.message(Order.issue_place)
 async def issue_place_receiver_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+    
+    issue_datetime = data['issue_datetime']
+    current_date = ''
+    if issue_datetime:
+        day = issue_datetime['day']
+        month = issue_datetime['month']
+        year = issue_datetime['year']
+        current_date = f'Текущая дата - <b>{day:02d}-{month:02d}-{year}</b>\n\n.'
+    
     await state.set_state(None)
     data = await state.get_data()
     issue_place = message.text
@@ -694,19 +776,40 @@ async def issue_place_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text='❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+                                                f'{current_date}' \
                                                 'Дату можно ввести вручную в формате: <i>ДД-ММ-ГГГГ</i>',
-                                        reply_markup=kb.create_calendar_keyboard(year, month),
+                                        reply_markup=kb.create_calendar_keyboard(year, month, issue_datetime),
                                         parse_mode='HTML')
     await state.set_state(Order.issue_datetime)
-    print(await state.get_data())
+
 
 
 # Предлагаем выбрать дату доставки
 # добавление новой сессии
+@order_creation.callback_query(F.data == 'new_order:self_pickup')
 @order_creation.callback_query(F.data.startswith('new_order:delivery:prev:'))
 @order_creation.callback_query(F.data.startswith('new_order:delivery:next:'))
+@order_creation.callback_query(F.data == 'new_order:delete_address')
 @order_creation.callback_query(F.data == 'new_order:delivery_date')
 async def new_session_handler(callback: CallbackQuery, state: FSMContext):
+    # Если методом выдачи был самовывоз, то адрес не нужен
+    issue_opt = 'ДОСТАВКИ'
+    if callback.data == 'new_order:self_pickup':
+        await state.update_data(issue_method='Самовывоз', issue_place=None, delivery_price=None)
+        issue_opt = 'ВЫДАЧИ'
+    elif callback.data == 'new_order:delete_address':
+        await state.update_data(issue_place=None)
+        
+    data = await state.get_data()
+    # Строим текст для текущих данных
+    issue_datetime = data['issue_datetime']
+    current_date = ''
+    if issue_datetime:
+        day_cur = issue_datetime['day']
+        month_cur = issue_datetime['month']
+        year_cur = issue_datetime['year']
+        current_date = f'Текущая дата - <b>{day_cur:02d}-{month_cur:02d}-{year_cur}</b>\n\n.'
+        
     await state.set_state(None)
     now = datetime.now()
     year = now.year
@@ -728,37 +831,74 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
                 year += 1
         await callback.message.edit_reply_markup(reply_markup=kb.create_calendar_keyboard(year, month))
     else:
-        await callback.message.edit_text(text='❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+        await callback.message.edit_text(text=f'❓ <b>УКАЖИТЕ ДАТУ {issue_opt}</b>\n\n' \
+                                                f'{current_date}' \
                                                 'Дату можно ввести вручную в формате: <i>ДД-ММ-ГГГГ</i>',
-                                        reply_markup=kb.create_calendar_keyboard(year, month),
+                                        reply_markup=kb.create_calendar_keyboard(year, month, issue_datetime),
                                         parse_mode='HTML')
     await state.set_state(Order.issue_datetime)
-    print(await state.get_data())
+
     
     
 # Обработка и сохранение даты при нажатии на кнопку
+@order_creation.callback_query(F.data == 'new_order:skip_date')
 @order_creation.callback_query(F.data.startswith('new_order:delivery:date:'))
 async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
-    date_data = callback.data.split(':')[-3:]
-    issue_datetime = {
-        'year': date_data[0],
-        'month': date_data[1],
-        'day': date_data[2]
-    }
-    await state.update_data(issue_datetime)
-    await callback.message.edit_text(text='❓⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
-                                        'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
-                                        'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+    # Определяем слово для правильного отображения
+    data = await state.get_data()
+    issue_method = data['issue_method']
+    issue_opt = 'ДОСТАВКИ'
+    if issue_method == 'Самовывоз':
+        issue_opt = 'ВЫДАЧИ'
+    
+    issue_datetime = data['issue_datetime']
+    current_time = ''
+    if issue_datetime:
+        if 'hour' in issue_datetime.keys():
+            hour = issue_datetime['hour']
+            minute = issue_datetime['minute']
+            current_time = f'Текущее время - <b>{hour:02d}:{minute:02d}</b>\n\n.'
+        
+    if callback.data != 'new_order:skip_date':
+        date_comp = [int(_) for _ in callback.data.split(':')[-3:]]
+        issue_datetime = {
+            'year': date_comp[0],
+            'month': date_comp[1],
+            'day': date_comp[2]
+        }
+        await state.update_data(issue_datetime=issue_datetime)
+    
+    await callback.message.edit_text(text=f'❓⌚️ <b>УКАЖИТЕ ВРЕМЯ {issue_opt}</b>\n\n' \
+                                            f'{current_time}' \
+                                            'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                            'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
                                     reply_markup=kb.cancel_delivery_time,
                                     parse_mode='HTML')
     await state.set_state(Order.issue_time)
-    print(await state.get_data())
     
 
 # Указание даты
 @order_creation.message(Order.issue_datetime)
 async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
+    # Определяем слово для правильного отображения
     data = await state.get_data()
+    issue_method = data['issue_method']
+    issue_opt = 'ДОСТАВКИ'
+    if issue_method == 'Самовывоз':
+        issue_opt = 'ВЫДАЧИ'
+    
+    issue_datetime = data['issue_datetime']
+    current_date = ''
+    if issue_datetime:
+        day = issue_datetime['day']
+        month = issue_datetime['month']
+        year = issue_datetime['year']
+        current_date = f'Текущая дата - <b>{day:02d}-{month:02d}-{year}</b>\n\n.'
+        if 'hour' in issue_datetime.keys():
+            hour = issue_datetime['hour']
+            minute = issue_datetime['minute']
+            current_time = f'Текущее время - <b>{hour:02d}:{minute:02d}</b>\n\n.'
+            
     try:
         date_comp = [int(_) for _ in message.text.split('-')]
         if len(date_comp) != 3 or len(str(date_comp[2])) != 4:
@@ -772,7 +912,8 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
         await state.update_data(issue_datetime=issue_datetime)
         await message.bot.edit_message_text(chat_id=data['chat_id'],
                                             message_id=data['message_id'],
-                                            text='❓⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
+                                            text=f'❓⌚️ <b>УКАЖИТЕ ВРЕМЯ {issue_opt}</b>\n\n' \
+                                                f'{current_time}' \
                                                 'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
                                                 'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
                                             reply_markup=kb.cancel_delivery_time,
@@ -784,21 +925,35 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
             await message.bot.edit_message_text(chat_id=data['chat_id'],
                                                 message_id=data['message_id'],
                                                 text='❗ <b>НЕВЕРНО УКАЗАНА ДАТА</b>\n\n' \
-                                                    '❓ <b>УКАЖИТЕ ДАТУ ДОСТАВКИ</b>\n\n' \
+                                                    f'❓ <b>УКАЖИТЕ ДАТУ {issue_opt}</b>\n\n' \
+                                                    f'{current_date}' \
                                                     'Дату можно ввести вручную в формате:</b>\n<i>ДД-ММ-ГГГГ</i>',
                                                 reply_markup=kb.cancel_delivery_time,
                                                 parse_mode='HTML')
             return None
         except TelegramBadRequest:
             return None
-    print(await state.get_data())
+
 
 
 # Принимаем время доставки заказа
 @order_creation.message(Order.issue_time)
 async def issue_time_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
+    # Определяем слово для правильного отображения
     data = await state.get_data()
+    issue_method = data['issue_method']
+    issue_opt = 'ДОСТАВКИ'
+    if issue_method == 'Самовывоз':
+        issue_opt = 'ВЫДАЧИ'
+    
+    issue_datetime = data['issue_datetime']
+    current_time = ''
+    if 'hour' in issue_datetime.keys():
+        hour = data['issue_datetime']['hour']
+        minute = data['issue_datetime']['minute']
+        current_time = f'Текущее время - <b>{hour:02d}:{minute:02d}</b>\n\n.'
+    
     issue_time = message.text.replace(':', '')
     try:
         if len(issue_time) != 4:
@@ -808,13 +963,14 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
         issue_datetime['minute'] = int(issue_time[-2:])
         datetime(**issue_datetime)
         await state.update_data(issue_datetime=issue_datetime)
-    except:
+    except Exception as e:
         try:
             await state.set_state(Order.issue_time)
             await message.bot.edit_message_text(chat_id=data['chat_id'],
                                                 message_id=data['message_id'],
                                                 text='❗ <b>НЕВЕРНО УКАЗАНО ВРЕМЯ</b>\n\n' \
-                                                    '⌚️ <b>УКАЖИТЕ ВРЕМЯ ДОСТАВКИ</b>\n\n' \
+                                                    f'⌚️ <b>УКАЖИТЕ ВРЕМЯ {issue_opt}</b>\n\n' \
+                                                    f'{current_time}' \
                                                     'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
                                                     'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
                                                 reply_markup=kb.cancel_delivery_time,
@@ -831,7 +987,7 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
                                         text=text,
                                         reply_markup=kb.new_order_keyboard,
                                         parse_mode='HTML')
-    print(await state.get_data())
+
 
 
 
