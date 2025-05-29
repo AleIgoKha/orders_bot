@@ -4,75 +4,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.database.requests import get_sessions, get_products
 
 
-session_cancellation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
-])
-
-issuing_method = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🤝 Самовывоз', callback_data='Самовывоз')],
-    [InlineKeyboardButton(text='🚗 Доставка по городу', callback_data='Доставка по городу')],
-    [InlineKeyboardButton(text='🚚 Доставка почтой', callback_data='Доставка почтой')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
-])
-
-session_confirmation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='session_confirmation')],
-    [InlineKeyboardButton(text='✍🏻 Изменить', callback_data='new_session')],
-    [InlineKeyboardButton(text='❌ Отменить создание сессии', callback_data='sessions:choose_session')]
-])
-
-
-# Функция для создания клавиатуры-списка сессий с пагинацией
-async def choose_session(page: int = 1, sessions_per_page: int = 8):
-    sessions = await get_sessions()
-    session_keyboard = InlineKeyboardBuilder()
-    
-    start = (page - 1) * sessions_per_page
-    end = start + sessions_per_page
-    current_sessions = sessions[start:end]
-    
-    for session in current_sessions:
-        text = f"{session.session_date.strftime('%d-%m-%Y')} - {session.session_place} - {session.session_method}"
-        callback_data = f"session_id_{session.session_id}"
-        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    session_keyboard.add(InlineKeyboardButton(text='➕ Новая сессия', callback_data='new_session'))
-    
-    session_keyboard.adjust(1)
-    
-    navigation_buttons = []
-    
-    if page > 1:
-        navigation_buttons.append(
-            InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"session_page_{page - 1}")
-        )
-    
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='main:menu'))
-    
-    if end < len(sessions):
-        navigation_buttons.append(
-            InlineKeyboardButton(text="Более ранние ➡️", callback_data=f"session_page_{page + 1}")
-        )
-        
-    if navigation_buttons:
-        session_keyboard.row(*navigation_buttons)
-
-    return session_keyboard.as_markup()
-
-
-
-session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
-    [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
-    [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
-    [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
-    [InlineKeyboardButton(text='⬇️ Скачать данные сессии', callback_data='session_downloads')],
-    [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='main:menu')]
-])
-
-
-
-
 
 back_to_change_order_data = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
@@ -83,25 +14,28 @@ back_to_change_item_data = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 # Клавиатура для управления данными заказа
-change_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+def change_order_menu(from_menu):
+    part_1 = [
     [InlineKeyboardButton(text='🧀 Данные о товарах', callback_data='change_item_data')],
-    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_client_name')],
-    [InlineKeyboardButton(text='📉 Изменить размер скидки', callback_data='change_order_disc')],
-    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
-    [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='⬅️ Назад', callback_data='back_process_order_menu')]
-])
-
-# Клавиатура для управления данными обработанного заказа
-change_completed_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧀 Управление данными о товарах', callback_data='change_item_data')],
-    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_client_name')],
-    [InlineKeyboardButton(text='💸 Изменить размер скидки', callback_data='change_order_disc')],
-    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
-    [InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')],
+    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_order_name')],
+    [InlineKeyboardButton(text='☎️ Изменить телефон клиента', callback_data='change_order_phone')],
+    [InlineKeyboardButton(text='🤑 Изменить размер скидки', callback_data='change_order_disc')],
+    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')]
+    ]
+    
+    if from_menu == 'completed_orders':
+        part_1.append([InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')])
+    
+    part_2 = [
     [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
     [InlineKeyboardButton(text='⬅️ Назад', callback_data='completed_orders')]
-])
+    ]
+    
+    inline_keyboard = part_1 + part_2
+    
+    change_order_menu = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return change_order_menu
+
 
 # Меню изменения данных товаров
 change_item_data = InlineKeyboardMarkup(inline_keyboard=[
@@ -274,3 +208,8 @@ async def choose_change_product_vacc(products: dict, from_callback: str, page: i
     return product_keyboard.as_markup()
 
 
+# изменяем номер телефона
+change_phone = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🗑 Удалить телефон', callback_data='change_order:delete_phone'),
+    InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
+])

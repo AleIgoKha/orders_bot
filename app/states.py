@@ -20,8 +20,10 @@ class Session(StatesGroup):
 class Order(StatesGroup):
     client_phone = State()
     change_client_phone = State()
+    change_order_phone = State()
     client_name = State()
     change_client_name = State()
+    change_order_name = State()
     delivery_price = State()
     issue_place = State()
     issue_datetime = State()

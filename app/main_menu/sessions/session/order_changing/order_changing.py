@@ -1,3 +1,4 @@
+import re
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -45,15 +46,11 @@ async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
     # Выводим один заказ
     text = order_text(order_items_data)
     
-    # В зависимости от того из какого меню пришли, выходит соответствующая клавиатура
-    if data['from_menu'] == 'order_processing':
-        await callback.message.edit_text(text=text,
-                                         reply_markup=kb.change_order_data_keyboard,
-                                         parse_mode='HTML')
-    elif data['from_menu'] == 'completed_orders':
-        await callback.message.edit_text(text=text,
-                                         reply_markup=kb.change_completed_order_data_keyboard,
-                                         parse_mode='HTML')     
+    from_menu = data['from_menu']
+    
+    await callback.message.edit_text(text=text,
+                                        reply_markup=kb.change_order_menu(from_menu),
+                                        parse_mode='HTML')
 
 
 # Заходим в меню управления данными товаров
@@ -73,12 +70,12 @@ async def change_item_data_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # инициируем изменение имени клиента и просим ввести новое
-@order_changing.callback_query(F.data == 'change_client_name')
-async def change_client_name_handler(callback: CallbackQuery, state: FSMContext):
+@order_changing.callback_query(F.data == 'change_order_name')
+async def change_order_name_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='❓<b>ВВЕДИТЕ НОВОЕ ИМЯ КЛИЕНТА</b>❓',
                                             reply_markup=kb.back_to_change_order_data,
                                             parse_mode='HTML')
-    await state.set_state(Order.change_client_name)
+    await state.set_state(Order.change_order_name)
 
 
 # Инициируем изменение количества товара или его удаление
@@ -196,7 +193,7 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
 # Принимаем состояния для изменения данных и возвращаем меню для изменения данных
 @order_changing.message(Order.change_disc)
 @order_changing.message(Item.item_qty)
-@order_changing.message(Order.change_client_name)
+@order_changing.message(Order.change_order_name)
 @order_changing.message(Item.change_item_qty)
 @order_changing.message(Order.change_note)
 async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
@@ -245,7 +242,7 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
         await change_item_data(item_id=data['item_id'], item_data=item_data)
     
     # Если сохраняем новое имя клиента
-    elif 'change_client_name' in state_name:
+    elif 'change_order_name' in state_name:
         order_data = {'client_name': message.text}
         await change_order_data(order_id=data['order_id'], order_data=order_data)
         
@@ -330,24 +327,17 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
     
     # Здесть двойное условие, так как некоторые состояния касаются заказа, а некоторые товара
     # И в зависимости от того данные чего мы обработали необходимо перейти в соответствующее меню 
-    if data['from_menu'] == 'order_processing':
-        reply_markup = kb.change_order_data_keyboard
-        if state_name.split(':')[-1] in ('item_qty', 'change_item_qty'):
-            reply_markup = kb.change_item_data
-        await message.bot.edit_message_text(chat_id=data['chat_id'],
-                                            message_id=data['message_id'],
-                                            text=text,
-                                            reply_markup=reply_markup,
-                                            parse_mode='HTML')
-    elif data['from_menu'] == 'completed_orders':
-        reply_markup = kb.change_completed_order_data_keyboard
-        if state_name.split(':')[-1] in ('item_qty', 'change_item_qty', ):
-            reply_markup = kb.change_item_data
-        await message.bot.edit_message_text(chat_id=data['chat_id'],
-                                            message_id=data['message_id'],
-                                            text=text,
-                                            reply_markup=reply_markup,
-                                            parse_mode='HTML')
+    
+    from_menu = data['from_menu']
+    
+    reply_markup = kb.change_order_menu(from_menu)
+    if state_name.split(':')[-1] in ('item_qty', 'change_item_qty'):
+        reply_markup = kb.change_item_data
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text=text,
+                                        reply_markup=reply_markup,
+                                        parse_mode='HTML')
 
 
 # Удаляем товар после подтверждения
@@ -547,3 +537,91 @@ async def apply_change_vacc_to_order_handler(callback: CallbackQuery, state: FSM
     
     # В зависимости от того удаляем вакуум или добавляем выбираем соответствующее меню
     await change_item_data_handler(callback, state)
+    
+
+# инициируем изменение номера телефона
+@order_changing.callback_query(F.data == 'change_order_phone')
+async def change_client_phone_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    order_id = data['order_id']
+    order_data = await get_order(order_id)
+    client_phone = order_data.client_phone
+    await callback.message.edit_text(text='❓ <b>ВЕДИТЕ НОВЫЙ НОМЕР ТЕЛЕФОНА КЛИЕНТА</b>\n\n' \
+                                        f'Текущий номер - <b>{client_phone}</b>',
+                                        reply_markup=kb.change_phone,
+                                        parse_mode='HTML')
+    await state.set_state(Order.change_order_phone)
+    
+    
+# Удаляем номер телефона
+@order_changing.callback_query(F.data == 'change_order:delete_phone')
+async def delete_phone_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+    order_id = data['order_id']
+    order_data = await get_order(order_id)
+    order_data = {'client_phone': None}
+    await change_order_data(order_id=order_id, order_data=order_data)
+    await change_order_data_handler(callback, state)
+
+
+# сохраняем новый номер телефона
+@order_changing.message(Order.change_order_phone)
+async def recieve_phone_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+    order_id = data['order_id']
+    order_data = await get_order(order_id)
+    client_phone = order_data.client_phone
+    
+    current_number = ''
+    if client_phone:
+        current_number = f'Текущий номер - <b>{client_phone}</b>'
+    
+    client_phone = message.text 
+    # проверяем на наличие букв в номере, на всякий случай
+    if re.search(r'[A-Za-zА-Яа-я]', client_phone) or not re.search(r'\d', client_phone):
+        try:
+            await state.set_state(Order.change_order_phone)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                message_id=data['message_id'],
+                                                text='❗️ <b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ</b> \n\n' \
+                                                    '❓ <b>ВВЕДИТЕ НОВЫЙ НОМЕР ТЕЛЕФОНА КЛИЕНТА</b> \n\n' \
+                                                    f'{current_number}' \
+                                                    'Формат ввода: <i>Номер телефона должен состоять только из цифр. ' \
+                                                    'Если номер НЕ молдавский то должен включать код страны начинаясь с +</i>',
+                                                reply_markup=kb.back_to_change_order_data,
+                                                parse_mode='HTML')
+
+            return None
+        except TelegramBadRequest:
+            return None
+    
+    # проверяем начинается ли с кода, и если нет то добавляем молдавский
+    client_phone = re.sub(r'[^\d+]', '', client_phone).lstrip('0')
+    if client_phone.startswith('373'):
+        client_phone = '+' + client_phone
+    elif client_phone.startswith('+'):
+        pass
+    else:
+        client_phone = '+373' + client_phone
+    
+    # Сохраняем номер в базу данных
+    order_data = {'client_phone': client_phone}
+    await change_order_data(order_id=order_id, order_data=order_data)
+    
+    # Возвращаемся в меню изменения товаров
+    # Достаем данные о продуктах одного заказа
+    order_items = await get_order_items(data['order_id'])
+    order_items_data = group_orders_items(order_items)[0]
+    
+    # Выводим данные одного заказа в сообщение
+    text = order_text(order_items_data)
+    
+    from_menu = data['from_menu']
+    
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text=text,
+                                        reply_markup=kb.change_order_menu(from_menu),
+                                        parse_mode='HTML')
