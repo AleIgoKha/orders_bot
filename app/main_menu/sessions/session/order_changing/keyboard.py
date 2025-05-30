@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.database.requests import get_sessions, get_products
+from app.database.requests import get_sessions, get_products, get_orders
 
 
 
@@ -19,6 +19,7 @@ def change_order_menu(from_menu):
     [InlineKeyboardButton(text='🧀 Данные о товарах', callback_data='change_item_data')],
     [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_order_name')],
     [InlineKeyboardButton(text='☎️ Изменить телефон клиента', callback_data='change_order_phone')],
+    [InlineKeyboardButton(text='📂 Изменить сессию заказа', callback_data='change_order:change_session')],
     [InlineKeyboardButton(text='🤑 Изменить размер скидки', callback_data='change_order_disc')],
     [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')]
     ]
@@ -213,3 +214,48 @@ change_phone = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🗑 Удалить телефон', callback_data='change_order:delete_phone'),
     InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
 ])
+
+
+# изменяем номер телефона
+change_session = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
+])
+
+
+# Функция для создания клавиатуры-списка сессий с пагинацией
+async def choose_session(page: int = 1, sessions_per_page: int = 8):
+    sessions = await get_sessions()
+    sessions = [session for session in sessions if not session.session_arch]
+    session_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * sessions_per_page
+    end = start + sessions_per_page
+    current_sessions = sessions[start:end]
+    
+    for session in current_sessions:
+        orders = await get_orders(session_id=session.session_id)
+        orders_number = len([order for order in orders if not order[0].order_completed])
+        text = f"{session.session_name} ({orders_number})"
+        callback_data = f"change_order:change_session_id_{session.session_id}"
+        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+        
+    session_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"change_order:change_session_page_{page - 1}")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data'))
+    
+    if end < len(sessions):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Вперед ➡️", callback_data=f"change_order:change_session_page_{page + 1}")
+        )
+        
+    if navigation_buttons:
+        session_keyboard.row(*navigation_buttons)
+
+    return session_keyboard.as_markup()

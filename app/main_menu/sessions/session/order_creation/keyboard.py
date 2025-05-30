@@ -169,7 +169,6 @@ change_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='☎️ Изменить телефон клиента', callback_data='new_order:change_phone')],
     [InlineKeyboardButton(text='⚖️ Изменить количество продукта', callback_data='change_product')],
     [InlineKeyboardButton(text='📤 Удалить вакуумную упаковку', callback_data='delete_vacc')],
-    # [InlineKeyboardButton(text='🛍 Параметры выдачи', callback_data='new_order:issuance_menu')],
     [InlineKeyboardButton(text='📝 Комментарий к заказу', callback_data='add_note')],
     [InlineKeyboardButton(text='📉 Применить скидку', callback_data='disc_all')],
     [InlineKeyboardButton(text='📂 Изменить сессию', callback_data='new_order:change_session')],

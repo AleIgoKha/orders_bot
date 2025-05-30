@@ -26,9 +26,25 @@ async def add_session(session, session_data):
     
 
 @connection
-async def add_order(session, order_data):
-    session.add(Order(**order_data))
+async def add_order(session, order_data, session_id):
+    await session.execute(
+        select(Order.order_id)
+        .where(Order.session_id == session_id)
+        .with_for_update()
+    )
+    
+    order_number = await session.execute(
+        select(func.coalesce(func.max(Order.order_number), 0) + 1)
+        .where(Order.session_id == session_id)
+    )
+    
+    order_data['order_number'] = order_number.scalar_one()
+    
+    new_order = Order(**order_data)
+    session.add(new_order)
     await session.commit()
+    await session.refresh(new_order)
+    return new_order.order_id
 
 
 @connection
@@ -76,19 +92,6 @@ async def get_products(session):
 async def get_product(session, product_id):
     product = await session.scalar(select(Product).where(Product.product_id == product_id))
     return product
-
-
-@connection
-async def get_new_last_number(session, session_id):
-    order_number = await session.execute(select(func.max(Order.order_number)).where(Order.session_id == session_id))
-    return order_number.scalar() or 0
-
-@connection
-async def get_order_id(session, session_id, order_number):
-    order_id = await session.execute(select(Order.order_id).where(Order.session_id == session_id,
-                                                         Order.order_number == order_number))
-    return order_id.scalar()
-
 
 
 @connection
@@ -158,6 +161,25 @@ async def change_order_data(session, order_id, order_data):
 @connection
 async def change_product_data(session, product_id, product_data):
     await session.execute(update(Product).where(Product.product_id == product_id).values(product_data))
+    await session.commit()
+    
+
+# изменяем session_id для созданного заказа
+@connection
+async def change_order_session_id(session, order_id, old_session_id, new_session_id):
+    await session.execute(
+        select(Order.order_id)
+        .where(Order.session_id.in_([old_session_id, new_session_id]))
+        .with_for_update()
+    )
+    
+    order_number = await session.execute(
+        select(func.coalesce(func.max(Order.order_number), 0) + 1)
+        .where(Order.session_id == new_session_id)
+    )
+    
+    order_data = {'session_id': new_session_id, 'order_number': order_number.scalar_one()}
+    await session.execute(update(Order).where(Order.order_id == order_id).values(order_data))
     await session.commit()
     
 

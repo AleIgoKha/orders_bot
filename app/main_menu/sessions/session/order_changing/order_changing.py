@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import app.main_menu.sessions.session.order_changing.keyboard as kb
 from app.states import Item, Order
-from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data
+from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data, get_session, change_order_session_id
 from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders_list_handler
 from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_list_handler
 from app.com_func import group_orders_items, order_text
@@ -623,5 +623,52 @@ async def recieve_phone_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text=text,
+                                        reply_markup=kb.change_order_menu(from_menu),
+                                        parse_mode='HTML')
+    
+    
+# Меняем сессию
+@order_changing.callback_query(F.data.startswith('change_order:change_session_page_'))
+@order_changing.callback_query(F.data == 'change_order:change_session')
+async def change_session_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    order_id = data['order_id']
+    order_data = await get_order(order_id=order_id)
+    session_id = order_data.session_id
+    session_data = await get_session(session_id=session_id)
+    current_session = session_data.session_name
+
+    if callback.data.startswith('change_order:change_session_page_'):
+        page = int(callback.data.split('_')[-1])
+    else:
+        page = 1
+    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ СЕССИЮ</b>\n\n' \
+                                            f'Текущая сессия - <b>{current_session}</b>',
+                                     reply_markup=await kb.choose_session(page=page),
+                                     parse_mode='HTML')
+
+
+
+# Изменяем сессию и переходим в меню изменения заказа
+@order_changing.callback_query(F.data.startswith('change_order:change_session_id_'))
+async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
+    new_session_id = int(callback.data.split('_')[-1])
+    data = await state.get_data()
+    old_session_id = data['session_id']
+    order_id = data['order_id']
+    await change_order_session_id(order_id=order_id, new_session_id=new_session_id, old_session_id=old_session_id)
+    print(data)
+    
+
+    # Достаем данные о продуктах одного заказа
+    order_items = await get_order_items(data['order_id'])
+    order_items_data = group_orders_items(order_items)[0]
+    
+    # Выводим один заказ
+    text = order_text(order_items_data)
+    
+    from_menu = data['from_menu']
+    
+    await callback.message.edit_text(text=text,
                                         reply_markup=kb.change_order_menu(from_menu),
                                         parse_mode='HTML')

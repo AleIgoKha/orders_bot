@@ -10,7 +10,7 @@ import app.main_menu.sessions.session.order_creation.keyboard as kb
 from app.main_menu.sessions.session.session_menu import session_menu_handler
 from app.main_menu.main_menu import main_menu_handler
 from app.states import Order, Product
-from app.database.requests import get_product, add_order, get_new_last_number, get_order_id, add_order_items, get_session_by_name, get_session
+from app.database.requests import get_product, add_order, add_order_items, get_session_by_name, get_session
 
 
 order_creation = Router()
@@ -548,14 +548,15 @@ async def save_order_handler(callback: CallbackQuery):
 @order_creation.callback_query(F.data == 'confirm_order_creation')
 async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
+    session_id = data['session_id']
     
     # Создаем новый заказ в базе данных
-    order_number = await get_new_last_number(data['session_id']) + 1
+    # order_number = await get_new_last_number(data['session_id']) + 1
     order_data = {
         'session_id': data['session_id'],
         'client_name': data['client_name'],
         'client_phone': data['client_phone'],
-        'order_number': order_number,
+        # 'order_number': order_number,
         'order_note': data['order_note'],
         'order_disc': data['order_disc'],
         'order_completed': False,
@@ -564,10 +565,10 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'issue_place': data['issue_place'],
         'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else None
     }
-    await add_order(order_data)
+    order_id = await add_order(order_data, session_id)
     
     # Добавляем данные о товарах в базу данных
-    order_id = await get_order_id(data['session_id'], order_number)
+    # order_id = await get_order_id(data['session_id'], order_number)
     items_data = [{'order_id': order_id} | data[product] for product in data.keys() if product.startswith('product_data_')]
     await add_order_items(items_data)
     
@@ -658,7 +659,7 @@ async def add_vacc_item_handler(callback: CallbackQuery, state: FSMContext):
         await change_order_handler(callback)
     
 
-# инициируем выбор новой сессии для ее смены
+# инициируем выбор сессии для ее смены
 @order_creation.callback_query(F.data.startswith('new_order:change_session_page_'))
 @order_creation.callback_query(F.data == 'new_order:change_session')
 async def change_session_handler(callback: CallbackQuery, state: FSMContext):
