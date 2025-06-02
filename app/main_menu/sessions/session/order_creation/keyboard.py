@@ -35,16 +35,17 @@ new_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
 
 # отмена стоимости доставки
 def cancel_delivery_price(issue_method):
-    callback_opt = 'new_order:delivery_date'
-    text_opt = '📅 К дате'
-    if issue_method != 'Самовывоз':
-        callback_opt = 'new_order:add_address'
-        text_opt = "📍 К адресу"
+    method_button = InlineKeyboardButton(text='🛍 Самовывоз', callback_data='new_order:self_pickup')
+    skip_button = InlineKeyboardButton(text='▶️ Пропустить', callback_data='new_order:delivery')
+    
+    if issue_method == 'Самовывоз':
+        method_button = InlineKeyboardButton(text="🚚 Доставка", callback_data='new_order:delivery')
+        skip_button = InlineKeyboardButton(text='▶️ Пропустить', callback_data='new_order:self_pickup')
         
     cancel_delivery_price = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='🛍 Самовывоз', callback_data='new_order:self_pickup')],
-        [InlineKeyboardButton(text=f'{text_opt}', callback_data=f'{callback_opt}'),
-        InlineKeyboardButton(text='🛑 Завершить', callback_data='new_order:menu')]
+        [method_button],
+        [skip_button,
+        InlineKeyboardButton(text='❌ Отмена', callback_data='new_order:menu')]
     ])
                                                  
     return cancel_delivery_price
@@ -56,6 +57,7 @@ cancel_delivery_address = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📅 К дате', callback_data='new_order:delivery_date'),
     InlineKeyboardButton(text='🛑 Завершить', callback_data='new_order:menu')]
 ])
+
 
 # отмена времени доставки
 cancel_delivery_time = InlineKeyboardMarkup(inline_keyboard=[
@@ -173,16 +175,6 @@ change_order_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📉 Применить скидку', callback_data='disc_all')],
     [InlineKeyboardButton(text='📂 Изменить сессию', callback_data='new_order:change_session')],
     [InlineKeyboardButton(text='⬅️ Назад', callback_data='new_order:menu')]
-])
-
-
-# параметры выдачи заказа
-issuance_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🚚 Метод выдачи', callback_data='new_order:add_product')],
-    [InlineKeyboardButton(text='📍 Адрес выдачи', callback_data='add_vacc_to_order')],
-    [InlineKeyboardButton(text='📅 Дата и время выдачи', callback_data='new_order:issuance_menu')],
-    [InlineKeyboardButton(text='💲 Стоимость выдачи', callback_data='new_order:change_order')],
-    [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'new_order:menu')]
 ])
 
 

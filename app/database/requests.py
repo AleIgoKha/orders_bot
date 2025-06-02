@@ -103,6 +103,7 @@ async def get_orders_items(session, session_id):
     
     return orders_data.all()
 
+# получаем всю информацию по заказу
 @connection
 async def get_order_items(session, order_id):
     order_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
@@ -111,6 +112,15 @@ async def get_order_items(session, order_id):
     
     
     return order_data.all()
+
+
+# получаем только товары одного заказа
+@connection
+async def get_items(session, order_id):
+    item_data = await session.scalars(select(Item).where(Item.order_id == order_id))
+    
+    return item_data.all()
+
 
 @connection
 async def get_item(session, item_id):

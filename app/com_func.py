@@ -108,12 +108,43 @@ def order_text(order_items_data):
                 vacc_price = 0
 
             item_price = round(item_qty_fact * float(item_price) + vacc_price)
-            total_price += item_price
+            total_price += round(item_price)
             
-            text += f'\nСтоимость - <b>{item_price} р</b>\n'
+            text += f'Стоимость - <b>{item_price} р</b>\n'
                 
     else:
         text += '\n<b>Заказ пуст 🤷‍♂️</b>\n'
+        
+    
+    issue_method = order_items_data['issue_method']
+    issue_place = order_items_data['issue_place']
+    issue_place = order_items_data['issue_place']
+    delivery_price = order_items_data['delivery_price']
+    issue_datetime = order_items_data['issue_datetime']
+    
+    if issue_method:
+        text += f'\n🛍 Метод выдачи - <b>{issue_method}</b>\n'
+    
+    issue_opt = 'выдачи'
+    if issue_method != 'Самовывоз':
+        issue_opt = 'доставки'
+        if delivery_price == None:
+            if total_price >= 300:
+                delivery_price = 0
+            else:
+                delivery_price = 20
+        
+        text += f'💲 Стоимость доставки - <b>{int(delivery_price)} руб</b>\n'
+    else:
+        delivery_price = 0
+    
+    if issue_place:
+        text += f'📍 Место доставки - <b>{issue_place}</b>\n'
+    if issue_datetime:
+        text += f'📅 Дата {issue_opt} - <b>{issue_datetime.day:02d}-{issue_datetime.month:02d}-{issue_datetime.year}</b>\n'
+        if any((issue_datetime.hour, issue_datetime.minute)):
+            text += f'⌚️ Время {issue_opt} - <b>{issue_datetime.hour:02d}:{issue_datetime.minute:02d}</b>\n'
+    
     
     order_disc = order_items_data['order_disc']
     if order_disc > 0:
@@ -121,8 +152,7 @@ def order_text(order_items_data):
     else:
         disc = ''
     
-    text += f'\n🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100))} р</b>{disc}\n'
-    
+    text += f'\n🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} р</b>{disc}\n'
     order_note = order_items_data['order_note']
     if order_note:
         text += f'\n<b>📝 Комментарий к заказу</b>\n{order_note}'  

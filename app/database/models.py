@@ -48,7 +48,7 @@ class Order(Base):
     issue_method: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_place: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    delivery_price: Mapped[Decimal] = mapped_column(Numeric(7, 2), default=Decimal("0.00"), server_default=text("0.00"))
+    delivery_price: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
     order_note: Mapped[str | None] = mapped_column(String, nullable=True)
     order_text: Mapped[str | None] = mapped_column(String, nullable=True)
     order_disc: Mapped[int] = mapped_column(Integer, default=0)
