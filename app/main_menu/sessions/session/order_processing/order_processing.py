@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import app.main_menu.sessions.session.order_processing.keyboard as kb
 from app.states import Item
-from app.database.requests import get_orders_items, get_order_items, get_item, change_item_data, change_order_data
+from app.database.requests import get_orders_items, get_order_items, get_item, change_item_data, change_order_data, get_items
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items, order_text
 
@@ -231,11 +231,25 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
     order_items = await get_order_items(order_id)
     order_items_data = group_orders_items(order_items)[0]
     
-    # Если не не осталось необработанных товаров, то разрешаем перевести в успешно обработанный
+    # Если не осталось необработанных товаров, то разрешаем перевести в успешно обработанный
     items_left = len([item for item in order_items_data.keys() if item.startswith('item_')
                     and order_items_data[item]['item_qty_fact'] == 0])
     if items_left == 0:
         order_data = {'order_completed': True}
+        
+        # Если не указана стоимость доставки, то она проставится автоматически в зависимости от стоимости заказа
+        items_data = await get_items(data['order_id'])
+        total_price = sum([round(item.item_price * item.item_qty_fact) for item in items_data])
+        issue_method = order_items_data['issue_method']
+        delivery_price = order_items_data['delivery_price']
+        if issue_method != 'Самовывоз':
+            if delivery_price == None:
+                if total_price >= 300:
+                    delivery_price = 0
+                else:
+                    delivery_price = 20
+                order_data['delivery_price'] = delivery_price
+        
         await change_order_data(order_id=order_id, order_data=order_data)
         await callback.answer(text='Заказ успешно обработан', show_alert=True)
         await orders_processing_list_handler(callback, state)

@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import String, Numeric, ForeignKey, Boolean, Integer, DateTime, text
+from sqlalchemy import String, Numeric, ForeignKey, Boolean, Integer, DateTime, text, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -48,13 +48,15 @@ class Order(Base):
     issue_method: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_place: Mapped[str | None] = mapped_column(String, nullable=True)
     issue_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    delivery_price: Mapped[Decimal | None] = mapped_column(Numeric(7, 2), nullable=True)
     order_note: Mapped[str | None] = mapped_column(String, nullable=True)
-    order_text: Mapped[str | None] = mapped_column(String, nullable=True)
-    delivery_price: Mapped[Decimal] = mapped_column(Numeric(7, 2), default=Decimal("0.00"), server_default=text("0.00"))
+    order_text: Mapped[str | None] = mapped_column(String, nullable=True) # не использовали
     order_disc: Mapped[int] = mapped_column(Integer, default=0)
     order_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    order_issued: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE"))
-    order_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    order_issued: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE")) # не использовали
+    order_source: Mapped[str | None] = mapped_column(String, nullable=True) # не использовали
+    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False) # не использовали
+    finished_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     session: Mapped["Session"] = relationship(back_populates="orders")
     

@@ -14,6 +14,13 @@ def group_orders_items(orders_items):
                                         'order_completed': order.order_completed,
                                         'order_note': order.order_note,
                                         'order_disc': order.order_disc,
+                                        'client_phone': order.client_phone,
+                                        'issue_method': order.issue_method,
+                                        'issue_place': order.issue_place,
+                                        'issue_datetime': order.issue_datetime,
+                                        'delivery_price': order.delivery_price,
+                                        'order_text': order.order_text,
+                                        'order_issued': order.order_issued,
                                         f'item_{item.item_id}': {
                                             'item_id': item.item_id,
                                             'item_name': item.item_name,
@@ -30,7 +37,14 @@ def group_orders_items(orders_items):
                                         'order_id': order.order_id,
                                         'order_completed': order.order_completed,
                                         'order_note': order.order_note,
-                                        'order_disc': order.order_disc})
+                                        'order_disc': order.order_disc,
+                                        'client_phone': order.client_phone,
+                                        'issue_method': order.issue_method,
+                                        'issue_place': order.issue_place,
+                                        'issue_datetime': order.issue_datetime,
+                                        'delivery_price': order.delivery_price,
+                                        'order_text': order.order_text,
+                                        'order_issued': order.order_issued})
         else:
             orders_items_data[-1][f'item_{item.item_id}'] = {
                                     'item_id': item.item_id,
@@ -47,8 +61,12 @@ def group_orders_items(orders_items):
 
 # формирует сообщение для меню заказа и изменения заказа
 def order_text(order_items_data):
-    text = f'📋 <b>ЗАКАЗ №{order_items_data['order_number']}</b>\n\n' \
-            f'👤 Клиент - <b>{order_items_data['client_name']}</b>\n\n'
+    text = f'📋 <b>ЗАКАЗ №{order_items_data['order_number']}</b>\n\n'
+    
+    text += f'👤 Имя клиента - <b>{order_items_data['client_name']}</b>\n'
+    
+    if order_items_data['client_phone']:
+        text += f'☎️ Номер телефона - <b>{order_items_data['client_phone']}</b>\n'
     
     items_list = [item for item in order_items_data.keys() if item.startswith('item_')]
     total_price = 0
@@ -67,7 +85,7 @@ def order_text(order_items_data):
             else:
                 item_vacc = ''
                 
-            text += f'🧀 <b>{item_name}{item_vacc}</b>\n'
+            text += f'\n🧀 <b>{item_name}{item_vacc}</b>\n'
             
             if item_unit == 'кг': # Переводим килограмы в граммы
                 text += f'Заказано - <b>{int(item_qty * 1000)} {item_unit[-1]}</b>\n' \
@@ -90,12 +108,43 @@ def order_text(order_items_data):
                 vacc_price = 0
 
             item_price = round(item_qty_fact * float(item_price) + vacc_price)
-            total_price += item_price
+            total_price += round(item_price)
             
-            text += f'Стоимость - <b>{item_price} р</b>\n\n'
+            text += f'Стоимость - <b>{item_price} р</b>\n'
                 
     else:
-        text += '<b>Заказ пуст 🤷‍♂️</b>\n\n'
+        text += '\n<b>Заказ пуст 🤷‍♂️</b>\n'
+        
+    
+    issue_method = order_items_data['issue_method']
+    issue_place = order_items_data['issue_place']
+    issue_place = order_items_data['issue_place']
+    delivery_price = order_items_data['delivery_price']
+    issue_datetime = order_items_data['issue_datetime']
+    
+    if issue_method:
+        text += f'\n🛍 Метод выдачи - <b>{issue_method}</b>\n'
+    
+    issue_opt = 'выдачи'
+    if issue_method != 'Самовывоз':
+        issue_opt = 'доставки'
+        if delivery_price == None:
+            if total_price >= 300:
+                delivery_price = 0
+            else:
+                delivery_price = 20
+        
+        text += f'💲 Стоимость доставки - <b>{int(delivery_price)} руб</b>\n'
+    else:
+        delivery_price = 0
+    
+    if issue_place:
+        text += f'📍 Место доставки - <b>{issue_place}</b>\n'
+    if issue_datetime:
+        text += f'📅 Дата {issue_opt} - <b>{issue_datetime.day:02d}-{issue_datetime.month:02d}-{issue_datetime.year}</b>\n'
+        if any((issue_datetime.hour, issue_datetime.minute)):
+            text += f'⌚️ Время {issue_opt} - <b>{issue_datetime.hour:02d}:{issue_datetime.minute:02d}</b>\n'
+    
     
     order_disc = order_items_data['order_disc']
     if order_disc > 0:
@@ -103,9 +152,8 @@ def order_text(order_items_data):
     else:
         disc = ''
     
-    text += f'🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100))} р</b>{disc}\n\n'
-    
+    text += f'\n🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} р</b>{disc}\n'
     order_note = order_items_data['order_note']
     if order_note:
-        text += f'<b>📝 Комментарий к заказу</b>\n{order_note}'  
+        text += f'\n<b>📝 Комментарий к заказу</b>\n{order_note}'  
     return text

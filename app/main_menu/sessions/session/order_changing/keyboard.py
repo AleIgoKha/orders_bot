@@ -1,130 +1,10 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+from app.database.requests import get_sessions, get_products, get_orders
 from calendar import monthrange
 from datetime import date
 
-from app.database.requests import get_sessions, get_products
-
-
-session_cancellation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
-])
-
-issuing_method = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🤝 Самовывоз', callback_data='Самовывоз')],
-    [InlineKeyboardButton(text='🚗 Доставка по городу', callback_data='Доставка по городу')],
-    [InlineKeyboardButton(text='🚚 Доставка почтой', callback_data='Доставка почтой')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='sessions:choose_session')]
-])
-
-session_confirmation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='session_confirmation')],
-    [InlineKeyboardButton(text='✍🏻 Изменить', callback_data='new_session')],
-    [InlineKeyboardButton(text='❌ Отменить создание сессии', callback_data='sessions:choose_session')]
-])
-
-
-# Функция для создания клавиатуры-списка сессий с пагинацией
-async def choose_session(page: int = 1, sessions_per_page: int = 8):
-    sessions = await get_sessions()
-    session_keyboard = InlineKeyboardBuilder()
-    
-    start = (page - 1) * sessions_per_page
-    end = start + sessions_per_page
-    current_sessions = sessions[start:end]
-    
-    for session in current_sessions:
-        text = f"{session.session_date.strftime('%d-%m-%Y')} - {session.session_place} - {session.session_method}"
-        callback_data = f"session_id_{session.session_id}"
-        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
-    
-    session_keyboard.add(InlineKeyboardButton(text='➕ Новая сессия', callback_data='new_session'))
-    
-    session_keyboard.adjust(1)
-    
-    navigation_buttons = []
-    
-    if page > 1:
-        navigation_buttons.append(
-            InlineKeyboardButton(text="⬅️ Более поздние", callback_data=f"session_page_{page - 1}")
-        )
-    
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='main:menu'))
-    
-    if end < len(sessions):
-        navigation_buttons.append(
-            InlineKeyboardButton(text="Более ранние ➡️", callback_data=f"session_page_{page + 1}")
-        )
-        
-    if navigation_buttons:
-        session_keyboard.row(*navigation_buttons)
-
-    return session_keyboard.as_markup()
-
-
-
-session_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Создать заказ', callback_data='order_creation')],
-    [InlineKeyboardButton(text='⚙️ Обработка заказов', callback_data='order_processing')],
-    [InlineKeyboardButton(text='☑️ Готовые заказы', callback_data='completed_orders')],
-    [InlineKeyboardButton(text='📈 Статистика сессии', callback_data='stats_orders_menu')],
-    [InlineKeyboardButton(text='⬇️ Скачать данные сессии', callback_data='session_downloads')],
-    [InlineKeyboardButton(text='❌ Выйти из сессии', callback_data='main:menu')]
-])
-
-
-# Календарь для выбора даты
-def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
-    """
-    Creates an inline keyboard representing a calendar for the given year and month.
-    """
-    keyboard = []
-    months = {
-    1: "Январь",
-    2: "Февраль",
-    3: "Март",
-    4: "Апрель",
-    5: "Май",
-    6: "Июнь",
-    7: "Июль",
-    8: "Август",
-    9: "Сентябрь",
-    10: "Октябрь",
-    11: "Ноябрь",
-    12: "Декабрь"}
-    keyboard.append([InlineKeyboardButton(text=f'{year} {months[month]}', callback_data="ignore")])
-    days_of_week = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-    keyboard.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in days_of_week])
-
-    first_day = date(year, month, 1)
-    first_day_weekday = first_day.weekday()  # Monday is 0, Sunday is 6
-    days_in_month = monthrange(year, month)[1]
-    day_counter = 1
-
-    for week in range(6):  # Up to 6 weeks can be displayed
-        row = []
-        for day_of_week in range(7):
-            if week == 0 and day_of_week < first_day_weekday:
-                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
-            elif day_counter > days_in_month:
-                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
-            else:
-                day_text = str(day_counter)
-                callback_data = f"session:date:{year}:{month}:{day_counter}"
-                row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
-                day_counter += 1
-        keyboard.append(row)
-        if day_counter > days_in_month:
-            break
-
-    navigation_buttons = [
-        InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"session:month:prev:{year}:{month}"),
-        InlineKeyboardButton(text="❌ Отмена", callback_data="sessions:choose_session"),
-        InlineKeyboardButton(text="➡️ Позднее", callback_data=f"session:month:next:{year}:{month}"),
-    ]
-    keyboard.append(navigation_buttons)
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 back_to_change_order_data = InlineKeyboardMarkup(inline_keyboard=[
@@ -136,25 +16,32 @@ back_to_change_item_data = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 # Клавиатура для управления данными заказа
-change_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+def change_order_menu(from_menu):
+    part_1 = [
     [InlineKeyboardButton(text='🧀 Данные о товарах', callback_data='change_item_data')],
-    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_client_name')],
-    [InlineKeyboardButton(text='📉 Изменить размер скидки', callback_data='change_order_disc')],
-    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
+    [InlineKeyboardButton(text='🛍 Изменить параметры выдачи', callback_data='change_order:issue_menu')],
+    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_order_name')],
+    [InlineKeyboardButton(text='☎️ Изменить телефон клиента', callback_data='change_order_phone')],
+    [InlineKeyboardButton(text='📂 Изменить сессию заказа', callback_data='change_order:change_session')],
+    [InlineKeyboardButton(text='🤑 Изменить размер скидки', callback_data='change_order_disc')],
+    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')]
+    ]
+    
+    back_callback = 'back_process_order_menu'
+    if from_menu == 'completed_orders':
+        part_1.append([InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')])
+        back_callback = 'completed_orders'
+    
+    part_2 = [
     [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='⬅️ Назад', callback_data='back_process_order_menu')]
-])
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'{back_callback}')]
+    ]
+    
+    inline_keyboard = part_1 + part_2
+    
+    change_order_menu = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    return change_order_menu
 
-# Клавиатура для управления данными обработанного заказа
-change_completed_order_data_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧀 Управление данными о товарах', callback_data='change_item_data')],
-    [InlineKeyboardButton(text='👤 Изменить имя клиента', callback_data='change_client_name')],
-    [InlineKeyboardButton(text='💸 Изменить размер скидки', callback_data='change_order_disc')],
-    [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')],
-    [InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')],
-    [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='⬅️ Назад', callback_data='completed_orders')]
-])
 
 # Меню изменения данных товаров
 change_item_data = InlineKeyboardMarkup(inline_keyboard=[
@@ -327,3 +214,181 @@ async def choose_change_product_vacc(products: dict, from_callback: str, page: i
     return product_keyboard.as_markup()
 
 
+# изменяем номер телефона
+change_phone = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🗑 Удалить телефон', callback_data='change_order:delete_phone'),
+    InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
+])
+
+
+# изменяем номер телефона
+change_session = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data')]
+])
+
+
+# Функция для создания клавиатуры-списка сессий с пагинацией
+async def choose_session(page: int = 1, sessions_per_page: int = 8):
+    sessions = await get_sessions()
+    sessions = [session for session in sessions if not session.session_arch]
+    session_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * sessions_per_page
+    end = start + sessions_per_page
+    current_sessions = sessions[start:end]
+    
+    for session in current_sessions:
+        orders = await get_orders(session_id=session.session_id)
+        orders_number = len([order for order in orders if not order[0].order_completed])
+        text = f"{session.session_name} ({orders_number})"
+        callback_data = f"change_order:change_session_id_{session.session_id}"
+        session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+        
+    session_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"change_order:change_session_page_{page - 1}")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data'))
+    
+    if end < len(sessions):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Вперед ➡️", callback_data=f"change_order:change_session_page_{page + 1}")
+        )
+        
+    if navigation_buttons:
+        session_keyboard.row(*navigation_buttons)
+
+    return session_keyboard.as_markup()
+
+
+# меню изменения параметров выдачи заказа
+def issue_menu(issue_method, issue_datetime):
+    inline_keyboard = [
+        [InlineKeyboardButton(text='🚚 Метод выдачи', callback_data='change_order:issue_method')]
+    ]
+    
+    if issue_method != 'Самовывоз':
+         inline_keyboard += [
+            [InlineKeyboardButton(text='💲 Стоимость выдачи', callback_data='change_order:delivery_price')],
+            [InlineKeyboardButton(text='📍 Адрес выдачи', callback_data='change_order:issue_place')]
+        ]
+    
+    inline_keyboard += [[InlineKeyboardButton(text='📅 Дата выдачи', callback_data='change_order:issue_date')]]
+    
+    if issue_datetime:
+        inline_keyboard += [[InlineKeyboardButton(text='⌚️ Время выдачи', callback_data='change_order:issue_time')]]
+        
+    inline_keyboard += [[InlineKeyboardButton(text='◀️ Назад', callback_data='change_order_data')]]
+    
+    issue_menu = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+    
+    return issue_menu
+
+
+# выбор способо выдачи
+def issue_method_kb(issue_method):
+    method_button = InlineKeyboardButton(text='🛍 Самовывоз', callback_data='change_order:self_pickup')
+    
+    if issue_method == 'Самовывоз':
+        method_button = InlineKeyboardButton(text="🚚 Доставка", callback_data='change_order:delivery')
+        
+    issue_method_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [method_button,
+        InlineKeyboardButton(text='❌ Отмена', callback_data='change_order:issue_menu')]
+    ])
+    
+    return issue_method_kb
+
+
+# отмена изменения стоимости доставки
+# в зависимости от меню есть возможность обнулить стоимость доставки
+def cancel_delivery_price(from_menu):
+    inline_keyboard = []
+    
+    if from_menu != 'completed_orders':
+        inline_keyboard.append(InlineKeyboardButton(text='🤖 Автоматически', callback_data='change_order:delete_delivery_price'))
+    
+    inline_keyboard.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_order:issue_menu'))
+        
+    cancel_delivery_price = InlineKeyboardMarkup(inline_keyboard=[inline_keyboard])
+    
+    return cancel_delivery_price
+
+
+# отмена изменения адресса
+cancel_delivery_address = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🗑 Удалить адресс', callback_data='change_order:delete_address'),
+    InlineKeyboardButton(text='❌ Отмена', callback_data='change_order:issue_menu')]
+])
+
+
+# Календарь для выбора даты
+def create_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+    """
+    Creates an inline keyboard representing a calendar for the given year and month.
+    """
+    keyboard = []
+    months = {
+    1: "Январь",
+    2: "Февраль",
+    3: "Март",
+    4: "Апрель",
+    5: "Май",
+    6: "Июнь",
+    7: "Июль",
+    8: "Август",
+    9: "Сентябрь",
+    10: "Октябрь",
+    11: "Ноябрь",
+    12: "Декабрь"}
+    keyboard.append([InlineKeyboardButton(text=f'{year} {months[month]}', callback_data="ignore")])
+    days_of_week = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    keyboard.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in days_of_week])
+
+    first_day = date(year, month, 1)
+    first_day_weekday = first_day.weekday()  # Monday is 0, Sunday is 6
+    days_in_month = monthrange(year, month)[1]
+    day_counter = 1
+
+    for week in range(6):  # Up to 6 weeks can be displayed
+        row = []
+        for day_of_week in range(7):
+            if week == 0 and day_of_week < first_day_weekday:
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
+            elif day_counter > days_in_month:
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
+            else:
+                day_text = str(day_counter)
+                callback_data = f"change_order:delivery:date:{year}:{month}:{day_counter}"
+                row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
+                day_counter += 1
+        keyboard.append(row)
+        if day_counter > days_in_month:
+            break
+    
+    additional_buttons = [
+        InlineKeyboardButton(text='🗑 Очистить дату', callback_data='change_order:delete_date')
+    ]
+    
+    keyboard.append(additional_buttons)
+
+    navigation_buttons = [
+        InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"change_order:delivery:prev:{year}:{month}"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="change_order:issue_menu"),
+        InlineKeyboardButton(text="➡️ Позднее", callback_data=f"change_order:delivery:next:{year}:{month}"),
+    ]
+    keyboard.append(navigation_buttons)
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# отмена времени доставки
+cancel_delivery_time = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🗑 Очистить время', callback_data='change_order:delete_time'),
+    InlineKeyboardButton(text='❌ Отмена', callback_data='change_order:issue_menu')]
+])

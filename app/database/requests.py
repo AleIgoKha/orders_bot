@@ -26,16 +26,25 @@ async def add_session(session, session_data):
     
 
 @connection
-async def add_order(session, order_data):
-    session.add(Order(order_completed=False,
-                    session_id=order_data['session_id'],
-                    client_name=order_data['client_name'],
-                    order_number=order_data['order_number'],
-                    order_note=order_data['order_note'],
-                    order_disc=order_data['order_disc']
-                    )
-                )
+async def add_order(session, order_data, session_id):
+    await session.execute(
+        select(Order.order_id)
+        .where(Order.session_id == session_id)
+        .with_for_update()
+    )
+    
+    order_number = await session.execute(
+        select(func.coalesce(func.max(Order.order_number), 0) + 1)
+        .where(Order.session_id == session_id)
+    )
+    
+    order_data['order_number'] = order_number.scalar_one()
+    
+    new_order = Order(**order_data)
+    session.add(new_order)
     await session.commit()
+    await session.refresh(new_order)
+    return new_order.order_id
 
 
 @connection
@@ -46,7 +55,7 @@ async def add_order_items(session, items_data):
             item_unit=item_data['product_unit'],
             item_price=item_data['product_price'],
             item_qty=Decimal(item_data['product_qty']) if item_data['product_unit'] == 'шт.' else  (Decimal(item_data['product_qty']) / 1000), # переводим граммы в килограммы
-            item_qty_fact=0, # проверить когда буду переделывать базу данных, можно ли переделать
+            # item_qty_fact=0, # проверить когда буду переделывать базу данных, можно ли переделать
             item_disc=item_data['item_disc'],
             item_vacc=item_data['item_vacc']
         )
@@ -86,19 +95,6 @@ async def get_product(session, product_id):
 
 
 @connection
-async def get_new_last_number(session, session_id):
-    order_number = await session.execute(select(func.max(Order.order_number)).where(Order.session_id == session_id))
-    return order_number.scalar() or 0
-
-@connection
-async def get_order_id(session, session_id, order_number):
-    order_id = await session.execute(select(Order.order_id).where(Order.session_id == session_id,
-                                                         Order.order_number == order_number))
-    return order_id.scalar()
-
-
-
-@connection
 async def get_orders_items(session, session_id):
     orders_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
                                                             .where(Order.session_id == session_id) \
@@ -107,6 +103,7 @@ async def get_orders_items(session, session_id):
     
     return orders_data.all()
 
+# получаем всю информацию по заказу
 @connection
 async def get_order_items(session, order_id):
     order_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
@@ -115,6 +112,15 @@ async def get_order_items(session, order_id):
     
     
     return order_data.all()
+
+
+# получаем только товары одного заказа
+@connection
+async def get_items(session, order_id):
+    item_data = await session.scalars(select(Item).where(Item.order_id == order_id))
+    
+    return item_data.all()
+
 
 @connection
 async def get_item(session, item_id):
@@ -165,6 +171,25 @@ async def change_order_data(session, order_id, order_data):
 @connection
 async def change_product_data(session, product_id, product_data):
     await session.execute(update(Product).where(Product.product_id == product_id).values(product_data))
+    await session.commit()
+    
+
+# изменяем session_id для созданного заказа
+@connection
+async def change_order_session_id(session, order_id, old_session_id, new_session_id):
+    await session.execute(
+        select(Order.order_id)
+        .where(Order.session_id.in_([old_session_id, new_session_id]))
+        .with_for_update()
+    )
+    
+    order_number = await session.execute(
+        select(func.coalesce(func.max(Order.order_number), 0) + 1)
+        .where(Order.session_id == new_session_id)
+    )
+    
+    order_data = {'session_id': new_session_id, 'order_number': order_number.scalar_one()}
+    await session.execute(update(Order).where(Order.order_id == order_id).values(order_data))
     await session.commit()
     
 
