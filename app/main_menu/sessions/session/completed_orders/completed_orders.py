@@ -51,11 +51,21 @@ def order_message(order_items_data):
     
     delivery_price = order_items_data['delivery_price']
     
+    if order_items_data['issue_method'] != 'Самовывоз':
+        if delivery_price == 0:
+            text += '\n<b>Бесплатная доставка</b>\n'
+        else:
+            text += f'\nСтоимость доставки - <b>{round(delivery_price)} руб.</b>\n'
+    else:
+        delivery_price = 0
+    
+
+    
     order_disc = order_items_data['order_disc']
     if order_disc > 0:
         text += f'\nРазмер скидки <b>{order_disc}%</b>\n'
     
-    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} р</b>\n\n' \
+    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} руб.</b>\n\n' \
             'До встречи!'
     
     return text

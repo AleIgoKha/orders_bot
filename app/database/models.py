@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 load_dotenv()
