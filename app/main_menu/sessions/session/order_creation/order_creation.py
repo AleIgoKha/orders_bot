@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 from datetime import datetime
+from pytz import timezone
 
 import app.main_menu.sessions.session.order_creation.keyboard as kb
 from app.main_menu.sessions.session.session_menu import session_menu_handler
@@ -94,7 +95,7 @@ async def new_order_handler(callback: CallbackQuery, state: FSMContext):
         'session_name': session.session_name,
         'issue_method': 'Самовывоз',
         'issue_place': None,
-        'issue_datetime': None,
+        'issue_datetime': None
     }
     
     await state.update_data(initial_data)
@@ -558,7 +559,8 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else None
+        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else None,
+        'creation_datetime': datetime.now(timezone("Europe/Chisinau"))
     }
     order_id = await add_order(order_data, session_id)
     

@@ -1,9 +1,11 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
+from datetime import datetime
+from pytz import timezone
 
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
-from app.database.requests import get_orders_items
+from app.database.requests import get_orders_items, change_order_data
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items
 
@@ -84,7 +86,8 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
     orders_items_data = group_orders_items(orders_items)
     
     # фильтр - если у заказа статус готового, то в обработку он не попадет
-    orders_items_data = [order_items_data for order_items_data in orders_items_data if order_items_data['order_completed']]
+    orders_items_data = [order_items_data for order_items_data in orders_items_data if order_items_data['order_completed']
+                         and not order_items_data['order_issued']]
     
     # Проверяем наличие заказов и если их нет, то показываем предупреждение
     if not orders_items_data:
@@ -119,3 +122,15 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
     # сохраняем данные id последнего сообщения
     await state.update_data(message_id=message.message_id, messages_sent=messages_sent, from_menu='completed_orders')
 
+
+# инициируем перевод заказа в статус выданного
+@completed_orders.callback_query(F.data.endswith("_mark_issued"))
+async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
+    order_id = int(callback.data.split("_")[0])
+    order_data = {
+        'finished_datetime': datetime.now(timezone("Europe/Chisinau")),
+        'order_issued': True
+    }
+    await change_order_data(order_id=order_id, order_data=order_data)
+    await callback.answer(text='Заказ отмечен как Выдан')
+    await completed_orders_list_handler(callback, state)

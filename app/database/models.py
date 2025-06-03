@@ -55,7 +55,7 @@ class Order(Base):
     order_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     order_issued: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE")) # не использовали
     order_source: Mapped[str | None] = mapped_column(String, nullable=True) # не использовали
-    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False) # не использовали
+    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('Europe/Chisinau', func.now()), nullable=False)
     finished_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     session: Mapped["Session"] = relationship(back_populates="orders")

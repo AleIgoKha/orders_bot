@@ -141,6 +141,18 @@ async def get_orders(session, session_id):
     
     return order_data.all()
 
+
+@connection
+async def get_orders_sorted(session, session_id):
+    order_data = await session.scalars(select(Order) \
+                                       .where(Order.session_id == session_id) \
+                                       .order_by(desc(Order.finished_datetime),
+                                                desc(Order.issue_datetime),
+                                                desc(Order.order_number)))
+    
+    return order_data.all()
+
+
 # изменение данных сессии
 @connection
 async def change_session_data(session, session_id, session_data):
