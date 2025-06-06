@@ -10,7 +10,7 @@ import app.main_menu.sessions.session.order_changing.keyboard as kb
 from app.states import Item, Order
 from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data, get_session, change_order_session_id, get_items
 from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders_list_handler
-from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_list_handler
+from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_handler
 from app.com_func import group_orders_items, order_text
 
 order_changing = Router()
@@ -18,30 +18,31 @@ order_changing = Router()
 
 # Переходим в меню изменения данных заказа либо напрямую из меню с обрабатываемыми/готовыми заказами либо после изменения параметра
 @order_changing.callback_query(F.data == 'change_order_data')
-@order_changing.callback_query(F.data.endswith('_change_order'))
+@order_changing.callback_query(F.data.endswith('completed_orders:change_order'))
 async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
+    order_id = data['order_id']
     
-    # Если пришли из change_order_{id}, то нужно зафиксировать order_id
-    if callback.data.split('_')[0].isdigit():
-        # Удаляем все лишние сообщения
-        for i in range(data['messages_sent']):
-            try:
-                message_id = data['message_id'] - i
-                if callback.message.message_id != message_id:
-                    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
-            except TelegramBadRequest:
-                continue
+    # # Если пришли из change_order_{id}, то нужно зафиксировать order_id
+    # if callback.data.split('_')[0].isdigit():
+    #     # Удаляем все лишние сообщения
+    #     for i in range(data['messages_sent']):
+    #         try:
+    #             message_id = data['message_id'] - i
+    #             if callback.message.message_id != message_id:
+    #                 await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
+    #         except TelegramBadRequest:
+    #             continue
     
-        # Достаем id одного заказа
-        order_id = int(callback.data.split('_')[0])
-        await state.update_data(message_id=callback.message.message_id,
-                        order_id=order_id)
-        data = await state.get_data()
+        # # Достаем id одного заказа
+        # order_id = int(callback.data.split('_')[0])
+        # await state.update_data(message_id=callback.message.message_id,
+        #                 order_id=order_id)
+        # data = await state.get_data()
 
     # Достаем данные о продуктах одного заказа
-    order_items = await get_order_items(data['order_id'])
+    order_items = await get_order_items(order_id)
     order_items_data = group_orders_items(order_items)[0]
     
     # Выводим один заказ
@@ -50,7 +51,7 @@ async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
     from_menu = data['from_menu']
     
     await callback.message.edit_text(text=text,
-                                        reply_markup=kb.change_order_menu(from_menu),
+                                        reply_markup=kb.change_order_menu(from_menu, order_id),
                                         parse_mode='HTML')
 
 
@@ -331,7 +332,7 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
     
     from_menu = data['from_menu']
     
-    reply_markup = kb.change_order_menu(from_menu)
+    reply_markup = kb.change_order_menu(from_menu, order_id)
     if state_name.split(':')[-1] in ('item_qty', 'change_item_qty'):
         reply_markup = kb.change_item_data
     await message.bot.edit_message_text(chat_id=data['chat_id'],
@@ -388,7 +389,6 @@ async def finish_delete_order_handler(callback: CallbackQuery, state: FSMContext
     
     # Делаем запрос на товары из заказа
     data = await state.get_data()
-    print(data)
     order_items = await get_order_items(data['order_id'])
     order_items_data = group_orders_items(order_items)[0]
     
@@ -406,7 +406,7 @@ async def finish_delete_order_handler(callback: CallbackQuery, state: FSMContext
     if data['from_menu'] == 'completed_orders':
         await completed_orders_list_handler(callback, state)
     elif data['from_menu'] == 'order_processing':
-        await orders_processing_list_handler(callback, state)
+        await orders_processing_handler(callback, state)
 
     
 # Инициируем изменение статуса товара
@@ -624,7 +624,7 @@ async def recieve_phone_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text=text,
-                                        reply_markup=kb.change_order_menu(from_menu),
+                                        reply_markup=kb.change_order_menu(from_menu, order_id),
                                         parse_mode='HTML')
     
     
@@ -671,7 +671,7 @@ async def change_order_data_handler(callback: CallbackQuery, state: FSMContext):
     from_menu = data['from_menu']
     
     await callback.message.edit_text(text=text,
-                                        reply_markup=kb.change_order_menu(from_menu),
+                                        reply_markup=kb.change_order_menu(from_menu, order_id),
                                         parse_mode='HTML')
     
     

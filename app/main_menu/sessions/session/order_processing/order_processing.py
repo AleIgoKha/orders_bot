@@ -5,84 +5,143 @@ from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
 import app.main_menu.sessions.session.order_processing.keyboard as kb
-from app.states import Item
-from app.database.requests import get_orders_items, get_order_items, get_item, change_item_data, change_order_data, get_items
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
+from app.states import Item
+from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_items, get_orders_sorted
 from app.com_func import group_orders_items, order_text
 
 order_processing = Router()
 
-# Выводим все заказы в виде отдельных сообщений с кнопкой "Обработать"
-@order_processing.callback_query(F.data == 'order_processing')
-async def orders_processing_list_handler(callback: CallbackQuery, state: FSMContext):
-    # Если хандлер был запущет при помощи callback, сохраняем для различия
-    if callback.data:
-        await state.update_data(callback_name=callback.data)
+
+# Выводим список всех заказов на обработку
+@order_processing.callback_query(F.data.startswith('order_processing:sorting:'))
+@order_processing.callback_query(F.data.startswith('order_processing:page_'))
+@order_processing.callback_query(F.data == 'session:order_processing')
+@order_processing.callback_query(F.data == 'order_processing:back')
+async def order_processing_handler(callback: CallbackQuery, state: FSMContext):
+    # Запоминаем, для дальнейших различий при изменении заказа
+    if callback.data == 'session:order_processing':
+        await state.update_data(from_menu='order_processing',
+                                callback_name=callback.data,  # запоминаем имя колбека для различия действий в изменении продуктов
+                                desc=False)
     
-    # Запрашиваем данные для всех заказов сессии
+    # запоминаем сортировку
+    if callback.data.startswith('order_processing:sorting:'):
+        if callback.data.split(':')[-1] == 'asc':
+            desc = False
+        else:
+            desc = True
+        await state.update_data(desc=desc)
+    
     data = await state.get_data()
     session_id = data['session_id']
-    orders_items = await get_orders_items(session_id)
-    orders_items_data = group_orders_items(orders_items)
+    desc = data['desc']
+    orders = await get_orders_sorted(session_id=session_id)
     
-    # фильтр - если у заказа статус готового, то в обработку он не попадет
-    orders_items_data = [order_items_data for order_items_data in orders_items_data if not order_items_data['order_completed']]
+    # если готовых заказов нет, то выводим алерт
+    orders = [order for order in orders if order.order_completed == False
+              and order.order_issued == False]
     
     # Проверяем наличие заказов и если их нет, то показываем предупреждение
-    if not orders_items_data:
+    if not orders:
         await callback.answer(text='Нет заказов для обработки', show_alert=True)
         # Если зашли не через callback order_processing, а при вызове функции, то переходим в меню сессии
-        if data['callback_name'] != 'order_processing':
+        if callback.data != 'session:order_processing':
             return await back_to_session_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования
-
-
-    messages_sent = 0
-    # Формируем и отправляем сообщения с информацией о заказах
-    for order_items_data in orders_items_data:        
-        text = order_text(order_items_data)
-
-        messages_sent += 1
-        if messages_sent != len(orders_items_data):
-            message = await callback.bot.send_message(chat_id=data['chat_id'],
-                                                        text=text,
-                                                        reply_markup=kb.process_button(order_items_data['order_id']),
-                                                        parse_mode='HTML')
-        else:
-            message = await callback.bot.send_message(chat_id=data['chat_id'],
-                                                        text=text,
-                                                        reply_markup=kb.last_process_button(order_items_data['order_id']),
-                                                        parse_mode='HTML')
     
-    # Удаляем сообщение с мею сессии
-    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=data['message_id'])
+    if not orders:
+        await callback.answer(text='Нет заказов на обработку', show_alert=True)
+        return None
     
-    # сохраняем данные id последнего сообщения
-    await state.update_data(message_id=message.message_id, messages_sent=messages_sent, from_menu='order_processing')
+    if callback.data.startswith('order_processing:page_'):
+        page = int(callback.data.split('_')[-1])
+    else:
+        page = 1
+        
+    await callback.message.edit_text(text='⚙️ <b> ЗАКАЗЫ НА ОБРАБОТКУ</b>',
+                                     reply_markup=kb.choose_order(orders=orders, desc=desc, page=page),
+                                     parse_mode='HTML')
+    
+    
+    
+
+# # Выводим все заказы в виде отдельных сообщений с кнопкой "Обработать"
+# @order_processing.callback_query(F.data == 'order_processing')
+# async def orders_processing_list_handler(callback: CallbackQuery, state: FSMContext):
+#     # Если хандлер был запущет при помощи callback, сохраняем для различия
+#     if callback.data:
+#         await state.update_data(callback_name=callback.data)
+    
+#     # Запрашиваем данные для всех заказов сессии
+#     data = await state.get_data()
+#     session_id = data['session_id']
+#     orders_items = await get_orders_items(session_id)
+#     orders_items_data = group_orders_items(orders_items)
+    
+#     # фильтр - если у заказа статус готового, то в обработку он не попадет
+#     orders_items_data = [order_items_data for order_items_data in orders_items_data if not order_items_data['order_completed']]
+    
+#     # Проверяем наличие заказов и если их нет, то показываем предупреждение
+#     if not orders_items_data:
+#         await callback.answer(text='Нет заказов для обработки', show_alert=True)
+#         # Если зашли не через callback order_processing, а при вызове функции, то переходим в меню сессии
+#         if data['callback_name'] != 'order_processing':
+#             return await back_to_session_menu_handler(callback, state)
+#         return None # это сделано чтобы не было ошибки редактирования
+
+
+#     messages_sent = 0
+#     # Формируем и отправляем сообщения с информацией о заказах
+#     for order_items_data in orders_items_data:        
+#         text = order_text(order_items_data)
+
+#         messages_sent += 1
+#         if messages_sent != len(orders_items_data):
+#             message = await callback.bot.send_message(chat_id=data['chat_id'],
+#                                                         text=text,
+#                                                         reply_markup=kb.process_button(order_items_data['order_id']),
+#                                                         parse_mode='HTML')
+#         else:
+#             message = await callback.bot.send_message(chat_id=data['chat_id'],
+#                                                         text=text,
+#                                                         reply_markup=kb.last_process_button(order_items_data['order_id']),
+#                                                         parse_mode='HTML')
+    
+#     # Удаляем сообщение с мею сессии
+#     await callback.bot.delete_message(chat_id=data['chat_id'], message_id=data['message_id'])
+    
+#     # сохраняем данные id последнего сообщения
+#     await state.update_data(message_id=message.message_id, messages_sent=messages_sent, from_menu='order_processing')
 
 
 # Заходим в меню заказа
-@order_processing.callback_query(F.data.startswith('process_order_'))
-@order_processing.callback_query(F.data == 'back_process_order_menu')
+@order_processing.callback_query(F.data.startswith('order_processing:order_id_'))
+# @order_processing.callback_query(F.data == 'back_process_order_menu')
 async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    
-    # Удаляем все лишние сообщения если не через кнопку возврата
-    if callback.data.startswith('process_order_'):
-        for i in range(data['messages_sent']):
-            try:
-                message_id = data['message_id'] - i
-                if callback.message.message_id != message_id:
-                    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
-            except TelegramBadRequest:
-                continue
-    
-        # Достаем id одного заказа
+    if callback.data.startswith('order_processing:order_id_'):
         order_id = int(callback.data.split('_')[-1])
-        await state.update_data(message_id=callback.message.message_id,
-                        order_id=order_id)
-    else:
-        order_id = data['order_id']
+        await state.update_data(order_id=order_id)
+    
+    data = await state.get_data()
+
+    
+    # # Удаляем все лишние сообщения если не через кнопку возврата
+    # if callback.data.startswith('process_order_'):
+    #     for i in range(data['messages_sent']):
+    #         try:
+    #             message_id = data['message_id'] - i
+    #             if callback.message.message_id != message_id:
+    #                 await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
+    #         except TelegramBadRequest:
+    #             continue
+    
+    #     # Достаем id одного заказа
+    #     order_id = int(callback.data.split('_')[-1])
+    #     await state.update_data(message_id=callback.message.message_id,
+    #                     order_id=order_id)
+    # else:
+    #     order_id = data['order_id']
         
     # Достаем данные о продуктах одного заказа
     order_items = await get_order_items(order_id)
@@ -105,7 +164,8 @@ async def process_order_data_handler(callback: CallbackQuery, state: FSMContext)
     
     # Делаем запрос на товары из заказа
     data = await state.get_data()
-    order_items = await get_order_items(data['order_id'])
+    order_id = data['order_id']
+    order_items = await get_order_items(order_id)
     order_items_data = group_orders_items(order_items)[0]
     
     items_data_list = [order_items_data[item]
@@ -125,7 +185,7 @@ async def process_order_data_handler(callback: CallbackQuery, state: FSMContext)
     await callback.bot.edit_message_text(chat_id=data['chat_id'],
                                          message_id=data['message_id'],
                                          text='❓<b>ВЫБЕРИТЕ ПРОДУКТ ДЛЯ ОБРАБОТКИ</b>❓',
-                                         reply_markup=kb.choose_item_processing(items_data_list, page=page),
+                                         reply_markup=kb.choose_item_processing(order_id, items_data_list, page=page),
                                          parse_mode='HTML')
 
 
@@ -252,7 +312,7 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
         
         await change_order_data(order_id=order_id, order_data=order_data)
         await callback.answer(text='Заказ успешно обработан', show_alert=True)
-        await orders_processing_list_handler(callback, state)
+        await order_processing_handler(callback, state)
     else:
         await callback.answer(text='Не все товары были обработаны.', show_alert=True)
     

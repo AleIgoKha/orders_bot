@@ -16,7 +16,7 @@ back_to_change_item_data = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 # Клавиатура для управления данными заказа
-def change_order_menu(from_menu):
+def change_order_menu(from_menu, order_id):
     part_1 = [
     [InlineKeyboardButton(text='🧀 Данные о товарах', callback_data='change_item_data')],
     [InlineKeyboardButton(text='🛍 Изменить параметры выдачи', callback_data='change_order:issue_menu')],
@@ -27,14 +27,12 @@ def change_order_menu(from_menu):
     [InlineKeyboardButton(text='📝 Изменить комментарий', callback_data='change_note')]
     ]
     
-    back_callback = 'back_process_order_menu'
     if from_menu == 'completed_orders':
         part_1.append([InlineKeyboardButton(text='☑ Изменить статус заказа', callback_data='change_status')])
-        back_callback = 'completed_orders'
     
     part_2 = [
     [InlineKeyboardButton(text='🗑 Удалить заказ', callback_data='delete_order')],
-    [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'{back_callback}')]
+    [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'{from_menu}:order_id_{order_id}')]
     ]
     
     inline_keyboard = part_1 + part_2

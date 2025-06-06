@@ -35,11 +35,14 @@ class Order(StatesGroup):
     add_note = State()
     change_note = State()
     change_disc = State()
+    finished_datetime = State()
+    finished_datetime_all = State()
     
 class Item(StatesGroup):
     item_qty_fact = State() # Количество при обработке товара
     change_item_qty = State() # Количество при изменении веса товара в заказе
     item_qty = State() # Количество при добавлении нового товара в заказ
+      
     
-class Order_Change(StatesGroup):
-    client_name = State()
+class Stats(StatesGroup):
+    date = State()

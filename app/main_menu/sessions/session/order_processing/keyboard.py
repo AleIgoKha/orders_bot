@@ -21,12 +21,12 @@ order_processing_menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='📋 Управление данными заказа', callback_data='change_order_data')],
     [InlineKeyboardButton(text='⚙ Обработка заказа', callback_data='process_order')],
     [InlineKeyboardButton(text='✅ Закончить обработку', callback_data='complete_order')],
-    [InlineKeyboardButton(text='⬅️ Назад к списку', callback_data='order_processing')]
+    [InlineKeyboardButton(text='⬅️ Назад к списку', callback_data='order_processing:back')]
 ])
 
 
 # Клавиатура для выбора обрабатываемого продукта
-def choose_item_processing(items_data_list: list, page: int = 1, items_per_page: int = 8):
+def choose_item_processing(order_id: int, items_data_list: list, page: int = 1, items_per_page: int = 8):
     item_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * items_per_page
@@ -55,7 +55,7 @@ def choose_item_processing(items_data_list: list, page: int = 1, items_per_page:
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"item_page_{page - 1}")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'back_process_order_menu'))
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'order_processing:order_id_{order_id}'))
     
     if end < len(items_data_list):
         navigation_buttons.append(
@@ -72,3 +72,52 @@ def choose_item_processing(items_data_list: list, page: int = 1, items_per_page:
 back_to_order_proccessing_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='⬅️ Назад', callback_data='process_order')]
 ])
+
+
+# выбор заказа
+def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 10):
+    order_keyboard = InlineKeyboardBuilder()
+    
+    sort_text = '🔼 Сначала старые'
+    callback_flag = 'asc'
+    if not desc:
+        orders = orders[::-1]
+        sort_text = '🔽 Сначала новые'
+        callback_flag = 'desc'
+    
+    start = (page - 1) * orders_per_page
+    end = start + orders_per_page
+    current_orders = orders[start:end]
+    
+    for order in current_orders:
+        if order.issue_datetime:
+            issue_datetime = order.issue_datetime
+        else:
+            issue_datetime = order.creation_datetime
+        
+        text = f"{issue_datetime.strftime("%d-%m-%Y")} - №{order.order_number} - {order.client_name}"
+        callback_data = f"order_processing:order_id_{order.order_id}"
+        order_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    order_keyboard.add(InlineKeyboardButton(text=sort_text, callback_data=f'order_processing:sorting:{callback_flag}'))
+    
+    order_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"order_processing:page_{page - 1}")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='session:back'))
+    
+    if end < len(orders):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data=f"order_processing:page_{page + 1}")
+        )
+        
+    if navigation_buttons:
+        order_keyboard.row(*navigation_buttons)
+
+    return order_keyboard.as_markup()
