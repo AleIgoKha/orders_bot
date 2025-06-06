@@ -1,7 +1,8 @@
 from app.database.models import async_session, Product, Session, Order, Item
 
-from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
+from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
 from decimal import Decimal
+from datetime import datetime
 
 def connection(func):
     async def inner(*args, **kwargs):
@@ -141,6 +142,58 @@ async def get_orders(session, session_id):
     
     return order_data.all()
 
+
+@connection
+async def get_orders_scalars(session, session_id):
+    order_data = await session.scalars(select(Order).where(Order.session_id == session_id))
+    
+    return order_data.all()
+
+
+# выводим выданные заказы по дате выдачи или без нее
+@connection
+async def get_orders_by_date(session, session_id, issued, datetime: datetime=None):
+    stmt = select(Order).where(Order.session_id == session_id)
+    
+    if issued:
+        if datetime:
+            stmt = stmt.where(
+                Order.order_issued == True,
+                extract('year', Order.finished_datetime) == datetime.year,
+                extract('month', Order.finished_datetime) == datetime.month,
+                extract('day', Order.finished_datetime) == datetime.day
+            )
+        else:
+            stmt = stmt.where(Order.order_issued == True,
+                              Order.finished_datetime.isnot(None))
+    else:
+        if datetime:
+            stmt = stmt.where(
+                Order.order_issued == False,
+                extract('year', Order.creation_datetime) == datetime.year,
+                extract('month', Order.creation_datetime) == datetime.month,
+                extract('day', Order.creation_datetime) == datetime.day
+            )
+        else:
+            stmt = stmt.where(Order.order_issued == False,
+                              Order.creation_datetime.isnot(None))
+    
+    issued_orders = await session.scalars(stmt)
+    
+    return issued_orders.all()
+
+
+@connection
+async def get_orders_sorted(session, session_id):
+    order_data = await session.scalars(select(Order) \
+                                       .where(Order.session_id == session_id) \
+                                       .order_by(desc(Order.finished_datetime),
+                                                desc(Order.issue_datetime),
+                                                desc(Order.order_number)))
+    
+    return order_data.all()
+
+
 # изменение данных сессии
 @connection
 async def change_session_data(session, session_id, session_data):
@@ -228,7 +281,7 @@ async def get_session_items_stats(session, session_id):
             func.sum(cast(Item.item_vacc, Integer)).label('vacc_count')
         )
         .select_from(Order)
-        .outerjoin(Item, Order.order_id == Item.order_id)
+        .join(Item, Order.order_id == Item.order_id)
         .where(Order.session_id == session_id)
         .group_by(Item.item_name, Item.item_unit)
         .order_by(asc(Item.item_name))
@@ -236,6 +289,54 @@ async def get_session_items_stats(session, session_id):
     
     result = await session.execute(stmt)
     return result.all()
+
+
+# Подсчет статистики по товарам для заказов сессии
+@connection
+async def get_session_stats(session, session_id, issued, datetime: datetime=None):
+    stmt = select(
+                Item.item_name,
+                Item.item_unit,
+                func.sum(Item.item_qty).label('total_qty'),
+                func.sum(Item.item_qty_fact).label('total_qty_fact'),
+                # func.sum(Item.item_price * Item.item_qty).label('est_revenue'),
+                # func.sum(Item.item_price * Item.item_qty_fact).label('exp_revenue'),
+                func.sum(cast(Item.item_vacc, Integer)).label('vacc_count')
+            ) \
+            .select_from(Order) \
+            .join(Item, Order.order_id == Item.order_id)
+        
+        
+    if issued:
+        if datetime:
+            stmt = stmt.where(Order.session_id == session_id,
+                Order.order_issued == True,
+                extract('year', Order.finished_datetime) == datetime.year,
+                extract('month', Order.finished_datetime) == datetime.month,
+                extract('day', Order.finished_datetime) == datetime.day)
+        else:
+            stmt = stmt.where(Order.session_id == session_id,
+                Order.order_issued == True,
+                Order.finished_datetime.isnot(None))
+    else:
+        if datetime:
+            stmt = stmt.where(Order.session_id == session_id,
+                            Order.order_issued == False,
+                            extract('year', Order.creation_datetime) == datetime.year,
+                            extract('month', Order.creation_datetime) == datetime.month,
+                            extract('day', Order.creation_datetime) == datetime.day)
+        else:
+            stmt = stmt.where(Order.session_id == session_id,
+                Order.order_issued == True,
+                Order.creation_datetime.isnot(None))
+    
+    stmt = stmt.group_by(Item.item_name, Item.item_unit) \
+                .order_by(asc(Item.item_name))
+    
+    result = await session.execute(stmt)
+    
+    return result.all()
+
 
 
 # @connection

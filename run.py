@@ -1,6 +1,5 @@
 import os
 import asyncio
-# import logging
 import redis.asyncio as aioredis
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
@@ -19,6 +18,7 @@ from app.main_menu.sessions.session.order_creation.order_creation import order_c
 from app.main_menu.sessions.session.order_processing.order_processing import order_processing
 from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders
 from app.main_menu.sessions.session.session_stats.session_stats import session_stats
+from app.main_menu.sessions.session.issued_orders.issued_orders import issued_orders
 
 from app.database.models import async_main
 from app.middlewares import MessagesRemover
@@ -39,6 +39,7 @@ async def main():
                        completed_orders,
                        session_stats,
                        order_downloading,
+                       issued_orders,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)
@@ -47,7 +48,6 @@ async def on_startup(*args):
     await async_main()
 
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.DEBUG)
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
