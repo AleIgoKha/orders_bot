@@ -2,21 +2,21 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-# Клавиатура кнопка "Изменить" для заказа
-def change_button(order_id):
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='✍️ Изменить', callback_data=f'{order_id}_change_order')],
-        [InlineKeyboardButton(text='👌🏽 Отметить как Выдан', callback_data=f'{order_id}_mark_issued')]
-        ])
+# # Клавиатура кнопка "Изменить" для заказа
+# def change_button(order_id):
+#     return InlineKeyboardMarkup(inline_keyboard=[
+#         [InlineKeyboardButton(text='✍️ Изменить', callback_data=f'{order_id}_change_order')],
+#         [InlineKeyboardButton(text='👌🏽 Отметить как Выдан', callback_data=f'{order_id}_mark_issued')]
+#         ])
     
 
-# Клавиатура кнопка "Назад в меню" для возврата из меню обработки заказов
-def last_change_button(order_id):
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='✍️ Изменить', callback_data=f'{order_id}_change_order')],
-        [InlineKeyboardButton(text='👌🏽 Отметить как Выдан', callback_data=f'{order_id}_mark_issued')],
-        [InlineKeyboardButton(text='⬅️ Назад в меню', callback_data=f'back_from_order_completed')]
-        ])
+# # Клавиатура кнопка "Назад в меню" для возврата из меню обработки заказов
+# def last_change_button(order_id):
+#     return InlineKeyboardMarkup(inline_keyboard=[
+#         [InlineKeyboardButton(text='✍️ Изменить', callback_data=f'{order_id}_change_order')],
+#         [InlineKeyboardButton(text='👌🏽 Отметить как Выдан', callback_data=f'{order_id}_mark_issued')],
+#         [InlineKeyboardButton(text='⬅️ Назад в меню', callback_data=f'back_from_order_completed')]
+#         ])
     
     
 # выбор заказа
@@ -83,7 +83,16 @@ completed_order = InlineKeyboardMarkup(inline_keyboard=[
 # подтвердить выдачу заказа
 def change_status(order_id):
     change_status = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='👌🏽 Подтвердить', callback_data='completed_orders:mark_issued'),
+        [InlineKeyboardButton(text='🌞 Сегодня', callback_data='completed_orders:mark_issued'),
+        InlineKeyboardButton(text='❌ Отмена', callback_data=f'completed_orders:order_id_{order_id}')]
+    ])
+    return change_status
+
+
+# подтвердить выдачу заказа
+def confirm_change_status(order_id):
+    change_status = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='✅ Подтвердить', callback_data='completed_orders:mark_issued'),
         InlineKeyboardButton(text='❌ Отмена', callback_data=f'completed_orders:order_id_{order_id}')]
     ])
     return change_status
@@ -95,6 +104,6 @@ issue_all = InlineKeyboardMarkup(inline_keyboard=[
 
 
 issue_all_confirmation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='👌🏽 Подтвердить', callback_data='completed_orders:mark_issued_all')],
+    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='completed_orders:mark_issued_all')],
     [InlineKeyboardButton(text='❌ Отмена', callback_data=f'completed_orders:back')]
     ])

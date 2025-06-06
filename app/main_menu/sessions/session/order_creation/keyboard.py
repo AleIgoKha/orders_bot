@@ -304,7 +304,7 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
     
     for session in current_sessions:
         orders = await get_orders(session_id=session.session_id)
-        orders_number = len([order for order in orders if not order[0].order_completed])
+        orders_number = len([order for order in orders if not order.order_completed])
         text = f"{session.session_name} ({orders_number})"
         callback_data = f"new_order:change_session_id_{session.session_id}"
         session_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
