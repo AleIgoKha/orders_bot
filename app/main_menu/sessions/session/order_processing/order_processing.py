@@ -18,7 +18,7 @@ order_processing = Router()
 @order_processing.callback_query(F.data.startswith('order_processing:page_'))
 @order_processing.callback_query(F.data == 'session:order_processing')
 @order_processing.callback_query(F.data == 'order_processing:back')
-async def order_processing_handler(callback: CallbackQuery, state: FSMContext):
+async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
     # Запоминаем, для дальнейших различий при изменении заказа
     if callback.data == 'session:order_processing':
         await state.update_data(from_menu='order_processing',
@@ -118,12 +118,13 @@ async def order_processing_handler(callback: CallbackQuery, state: FSMContext):
 # Заходим в меню заказа
 @order_processing.callback_query(F.data.startswith('order_processing:order_id_'))
 # @order_processing.callback_query(F.data == 'back_process_order_menu')
-async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
+async def order_processing_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('order_processing:order_id_'):
         order_id = int(callback.data.split('_')[-1])
         await state.update_data(order_id=order_id)
     
     data = await state.get_data()
+    order_id = data['order_id']
 
     
     # # Удаляем все лишние сообщения если не через кнопку возврата
@@ -141,7 +142,7 @@ async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
     #     await state.update_data(message_id=callback.message.message_id,
     #                     order_id=order_id)
     # else:
-    #     order_id = data['order_id']
+    #     
         
     # Достаем данные о продуктах одного заказа
     order_items = await get_order_items(order_id)
@@ -312,7 +313,7 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
         
         await change_order_data(order_id=order_id, order_data=order_data)
         await callback.answer(text='Заказ успешно обработан', show_alert=True)
-        await order_processing_handler(callback, state)
+        await orders_processing_handler(callback, state)
     else:
         await callback.answer(text='Не все товары были обработаны.', show_alert=True)
     

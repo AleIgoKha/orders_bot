@@ -6,7 +6,7 @@ from datetime import datetime
 from pytz import timezone
 
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
-from app.database.requests import get_orders_items, change_order_data, get_orders_sorted, get_order_items, get_orders_scalars
+from app.database.requests import change_order_data, get_orders_sorted, get_order_items, get_orders
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items
 from app.states import Order
@@ -102,7 +102,7 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
     orders = await get_orders_sorted(session_id=session_id)
     
     # если готовых заказов нет, то выводим алерт
-    orders = [order for order in orders if order.order_completed == True][::-1]
+    orders = [order for order in orders if order.order_completed == True]
     # Проверяем наличие заказов и если их нет, то показываем предупреждение
     if not orders:
         await callback.answer(text='Нет готовых заказов', show_alert=True)
@@ -193,7 +193,7 @@ async def finished_datetime_receiver_handler(message: Message, state: FSMContext
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text=f'Вы указали дату выдачи заказа <b>{text_date}</b>.',
-                                        reply_markup=kb.change_status(order_id),
+                                        reply_markup=kb.confirm_change_status(order_id),
                                         parse_mode='HTML')
 
 
@@ -267,12 +267,13 @@ async def finished_datetime_all_receiver_handler(message: Message, state: FSMCon
                                         parse_mode='HTML')
 
 
-# переводим заказ в статус выданного
+# переводим все заказы в статус выданного
 @completed_orders.callback_query(F.data == "completed_orders:mark_issued_all")
 async def mark_issued_all_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     session_id = data['session_id']
-    orders = await get_orders_scalars(session_id)
+    orders = await get_orders(session_id)
+    orders = [order for order in orders if order.order_completed == True and order.order_issued == False]
     
     for order in orders:
         order_id = order.order_id

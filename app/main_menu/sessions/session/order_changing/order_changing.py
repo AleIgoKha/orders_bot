@@ -389,12 +389,6 @@ async def finish_delete_order_handler(callback: CallbackQuery, state: FSMContext
     
     # Делаем запрос на товары из заказа
     data = await state.get_data()
-    order_items = await get_order_items(data['order_id'])
-    order_items_data = group_orders_items(order_items)[0]
-    
-    # Удаляем все товары
-    item_ids = [int(item_id.split('_')[-1]) for item_id in order_items_data.keys() if item_id.startswith('item_')]
-    await delete_items(item_ids)
     
     # Удаляем заказ
     order_id = data['order_id']

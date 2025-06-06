@@ -138,13 +138,6 @@ async def get_order(session, order_id):
 
 @connection
 async def get_orders(session, session_id):
-    order_data = await session.execute(select(Order).where(Order.session_id == session_id))
-    
-    return order_data.all()
-
-
-@connection
-async def get_orders_scalars(session, session_id):
     order_data = await session.scalars(select(Order).where(Order.session_id == session_id))
     
     return order_data.all()
@@ -327,7 +320,7 @@ async def get_session_stats(session, session_id, issued, datetime: datetime=None
                             extract('day', Order.creation_datetime) == datetime.day)
         else:
             stmt = stmt.where(Order.session_id == session_id,
-                Order.order_issued == True,
+                Order.order_issued == False,
                 Order.creation_datetime.isnot(None))
     
     stmt = stmt.group_by(Item.item_name, Item.item_unit) \
