@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
-from app.states import Stats
+from app.com_func import represent_utc_3
 import app.main_menu.sessions.session.session_stats.keyboard as kb
 from app.database.requests import get_session_stats, get_orders_by_date, get_items
 
@@ -34,7 +34,7 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
     callback_name = data['callback_name']
     
     await state.set_state(None)
-    now = datetime.now()
+    now = represent_utc_3(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад

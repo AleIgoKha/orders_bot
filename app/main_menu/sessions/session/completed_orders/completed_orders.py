@@ -94,7 +94,6 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
         else:
             desc = True
         await state.update_data(desc=desc)
-        
     
     data = await state.get_data()
     session_id = data['session_id']

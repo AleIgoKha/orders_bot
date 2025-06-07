@@ -51,7 +51,7 @@ def create_calendar_keyboard(callback_name, year: int, month: int) -> InlineKeyb
             else:
                 day_text = str(day_counter)
                 if day_counter == date.today().day and month == date.today().month and year == date.today().year:
-                    day_text += ' 🌞'
+                    day_text = '🌞'
                 callback_data = f"stats_menu:{callback_name}:date:{year}:{month}:{day_counter}"
                 row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
                 day_counter += 1

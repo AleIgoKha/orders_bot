@@ -4,14 +4,16 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
+
 
 import app.main_menu.sessions.session.order_changing.keyboard as kb
 from app.states import Item, Order
 from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data, get_session, change_order_session_id, get_items
 from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders_list_handler
 from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_handler
-from app.com_func import group_orders_items, order_text
+from app.com_func import group_orders_items, order_text, represent_utc_3
 
 order_changing = Router()
 
@@ -201,6 +203,7 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
 async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
     data = await state.get_data()
     state_name = await state.get_state()
+    order_id = data['order_id']
     
     # Если сохраняем новый вес продукта как фактический так и заказанный
     if 'change_item_qty' in state_name:
@@ -312,7 +315,7 @@ async def confirm_change_item_qty_handler(message: Message, state: FSMContext):
             except TelegramBadRequest:
                 return None
         
-        order_id = data['order_id']
+        
         order_data = {'order_disc': disc}
         await change_order_data(order_id=order_id, order_data=order_data)
             
@@ -902,7 +905,7 @@ async def issue_date_handler(callback: CallbackQuery, state: FSMContext):
     order_items_data = group_orders_items(order_items)[0]
     
     # Строим текст для текущих данных
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     current_date = ''
     if issue_datetime:
         day_cur = issue_datetime.day
@@ -917,7 +920,7 @@ async def issue_date_handler(callback: CallbackQuery, state: FSMContext):
         issue_opt = 'ВЫДАЧИ'
         
     await state.set_state(None)
-    now = datetime.now()
+    now = represent_utc_3(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
@@ -960,18 +963,19 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
     if issue_method == 'Самовывоз':
         issue_opt = 'ВЫДАЧИ'
     
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     current_date = ''
     if issue_datetime:
         day = issue_datetime.day
         month = issue_datetime.month
         year = issue_datetime.year
         current_date = f'Текущая дата - <b>{day:02d}-{month:02d}-{year}</b>\n\n.'
-            
+    
     try:
         date_comp = [int(_) for _ in message.text.split('-')]
         if len(date_comp) != 3 or len(str(date_comp[2])) != 4:
             raise ValueError('Неправильный формат')
+        
         issue_datetime = {
             'year': date_comp[2],
             'month': date_comp[1],
@@ -980,15 +984,15 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
         datetime(**issue_datetime)
     except:
         try:
-            await state.set_state(Order.change_issue_datetime)
             await message.bot.edit_message_text(chat_id=data['chat_id'],
                                                 message_id=data['message_id'],
                                                 text='❗ <b>НЕВЕРНО УКАЗАНА ДАТА</b>\n\n' \
                                                     f'❓ <b>УКАЖИТЕ ДАТУ {issue_opt}</b>\n\n' \
                                                     f'{current_date}' \
-                                                    'Дату можно ввести вручную в формате:</b>\n<i>ДД-ММ-ГГГГ</i>',
+                                                'Дату можно ввести вручную в формате: <i>ДД-ММ-ГГГГ</i>',
                                                 reply_markup=kb.create_calendar_keyboard(year, month),
                                                 parse_mode='HTML')
+            await state.set_state(Order.change_issue_datetime)
             return None
         except TelegramBadRequest:
             return None
@@ -1012,13 +1016,13 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
                                         parse_mode='HTML')
     
     
-# 
+# удаление даты выдачи заказа
 @order_changing.callback_query(F.data == 'change_order:delete_date')
 @order_changing.callback_query(F.data.startswith('change_order:delivery:date:'))
 async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
-    order_id = data['order_id']  
+    order_id = data['order_id']
     if callback.data != 'change_order:delete_date':
         date_comp = [int(_) for _ in callback.data.split(':')[-3:]]
         issue_datetime = {
@@ -1028,7 +1032,8 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
         }
         order_data = {'issue_datetime': datetime(**issue_datetime)}
     else:
-        order_data = {'issue_datetime': None}
+        order = await get_order(order_id=order_id)
+        order_data = {'issue_datetime': order.creation_datetime}
     await change_order_data(order_id, order_data)
     
     await issue_menu_handler(callback, state)
@@ -1049,7 +1054,7 @@ async def issue_time_handler(callback: CallbackQuery, state: FSMContext):
     if issue_method == 'Самовывоз':
         issue_opt = 'ВЫДАЧИ'
     
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     current_time = ''
     if issue_datetime:
         hour = issue_datetime.hour
@@ -1082,10 +1087,11 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
     if issue_method == 'Самовывоз':
         issue_opt = 'ВЫДАЧИ'
     
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     if issue_datetime:
         hour = issue_datetime.hour
         minute = issue_datetime.minute
+        current_time = ''
         if any((issue_datetime.hour, issue_datetime.minute)):
             current_time = f'Текущее время - <b>{hour:02d}:{minute:02d}</b>\n\n.'
     

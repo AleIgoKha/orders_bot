@@ -5,11 +5,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 from datetime import datetime
-from pytz import timezone
+import pytz
 
 import app.main_menu.sessions.session.order_creation.keyboard as kb
 from app.main_menu.sessions.session.session_menu import session_menu_handler
 from app.main_menu.main_menu import main_menu_handler
+from app.com_func import represent_utc_3
 from app.states import Order, Product
 from app.database.requests import get_product, add_order, add_order_items, get_session_by_name, get_session
 
@@ -547,6 +548,11 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
     data = await state.get_data()
     session_id = data['session_id']
     
+    tz = pytz.timezone("Europe/Chisinau")
+    naive_midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    localized_midnight = tz.localize(naive_midnight)
+
+    
     # Создаем новый заказ в базе данных
     # order_number = await get_new_last_number(data['session_id']) + 1
     order_data = {
@@ -559,8 +565,8 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else None,
-        'creation_datetime': datetime.now(timezone("Europe/Chisinau"))
+        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else localized_midnight,
+        'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)
     
@@ -653,7 +659,7 @@ async def add_vacc_item_handler(callback: CallbackQuery, state: FSMContext):
     if from_callback == 'add_vacc_to_order':
         await back_to_order_creation_handler(callback, state)
     elif from_callback == 'delete_vacc':
-        await change_order_handler(callback)
+        await change_order_handler(callback, state)
     
 
 # инициируем выбор сессии для ее смены
@@ -720,7 +726,7 @@ async def issue_place_receiver_handler(message: Message, state: FSMContext):
     issue_place = message.text
     await state.update_data(issue_place=issue_place)
     
-    now = datetime.now()
+    now = represent_utc_3(datetime.now())
     year = now.year
     month = now.month
     await message.bot.edit_message_text(chat_id=data['chat_id'],
@@ -761,7 +767,7 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
         current_date = f'Текущая дата - <b>{day_cur:02d}-{month_cur:02d}-{year_cur}</b>\n\n.'
         
     await state.set_state(None)
-    now = datetime.now()
+    now = represent_utc_3(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад

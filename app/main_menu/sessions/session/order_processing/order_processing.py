@@ -215,6 +215,7 @@ async def item_processing(callback: CallbackQuery, state: FSMContext):
 @order_processing.message(Item.item_qty_fact)
 async def item_qty_handler(message: Message, state: FSMContext):
     data = await state.get_data()
+    order_id = data['order_id']
     # Проверяем формат ввода цифр
     try:
         item_qty_fact = Decimal(message.text.replace(',', '.'))
@@ -251,7 +252,7 @@ async def item_qty_handler(message: Message, state: FSMContext):
     await state.set_state(None)
 
     # Делаем запрос на товары из заказа
-    order_items = await get_order_items(data['order_id'])
+    order_items = await get_order_items(order_id)
     order_items_data = group_orders_items(order_items)[0]
     
 
@@ -263,12 +264,11 @@ async def item_qty_handler(message: Message, state: FSMContext):
         await message.bot.edit_message_text(chat_id=data['chat_id'],
                                             message_id=data['message_id'],
                                             text='❓<b>ВЫБЕРИТЕ ПРОДУКТ ДЛЯ ОБРАБОТКИ</b>❓',
-                                            reply_markup=kb.choose_item_processing(items_data_list),
+                                            reply_markup=kb.choose_item_processing(order_id, items_data_list),
                                             parse_mode='HTML')
     else:
         # Переходим в меню заказа 
         # Достаем данные о продуктах одного заказа
-        order_id = data['order_id']
         order_items = await get_order_items(order_id)
         order_items_data = group_orders_items(order_items)[0]
         

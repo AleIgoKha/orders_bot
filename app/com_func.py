@@ -1,3 +1,11 @@
+from datetime import timezone
+import pytz
+
+
+def represent_utc_3(datetime):
+    utc_dt = datetime.replace(tzinfo=timezone.utc)
+    local_dt = utc_dt.astimezone(pytz.timezone("Europe/Chisinau"))
+    return local_dt
 
 
 # Функция группирует данные полученные из запроса
@@ -58,7 +66,6 @@ def group_orders_items(orders_items):
                                 }
     return orders_items_data
 
-
 # формирует сообщение для меню заказа и изменения заказа
 def order_text(order_items_data):
     text = f'📋 <b>ЗАКАЗ №{order_items_data['order_number']}</b>\n\n'
@@ -107,8 +114,8 @@ def order_text(order_items_data):
             else:
                 vacc_price = 0
 
-            item_price = round(item_qty_fact * float(item_price) + vacc_price)
-            total_price += round(item_price)
+            item_price = round(item_qty_fact * float(item_price) + vacc_price, 2)
+            total_price += item_price
             
             text += f'Стоимость - <b>{item_price} р</b>\n'
                 
@@ -140,7 +147,10 @@ def order_text(order_items_data):
     
     if issue_place:
         text += f'📍 Место доставки - <b>{issue_place}</b>\n'
+        
     if issue_datetime:
+        issue_datetime = represent_utc_3(issue_datetime)
+        
         text += f'📅 Дата {issue_opt} - <b>{issue_datetime.day:02d}-{issue_datetime.month:02d}-{issue_datetime.year}</b>\n'
         if any((issue_datetime.hour, issue_datetime.minute)):
             text += f'⌚️ Время {issue_opt} - <b>{issue_datetime.hour:02d}:{issue_datetime.minute:02d}</b>\n'
@@ -148,11 +158,11 @@ def order_text(order_items_data):
     
     order_disc = order_items_data['order_disc']
     if order_disc > 0:
-        disc = f' (Скидка - {order_disc}% - {round(total_price * ((100 - order_disc) / 100))} р)'
+        disc = f' (Скидка - {order_disc}% - {round(total_price * order_disc / 100, 2)} р)'
     else:
         disc = ''
     
-    text += f'\n🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} р</b>{disc}\n'
+    text += f'\n🧾 <b>К ОПЛАТЕ</b> - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price), 2)} р</b>{disc}\n'
     order_note = order_items_data['order_note']
     if order_note:
         text += f'\n<b>📝 Комментарий к заказу</b>\n{order_note}'  
