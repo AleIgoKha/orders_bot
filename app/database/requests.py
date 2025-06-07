@@ -181,8 +181,7 @@ async def get_orders_sorted(session, session_id):
     order_data = await session.scalars(select(Order) \
                                        .where(Order.session_id == session_id) \
                                        .order_by(desc(Order.finished_datetime),
-                                                desc(Order.issue_datetime),
-                                                desc(Order.order_number)))
+                                                 desc(Order.issue_datetime)))
     
     return order_data.all()
 

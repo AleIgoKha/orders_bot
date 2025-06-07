@@ -103,6 +103,8 @@ def create_calendar_keyboard(year: int, month: int, issue_datetime: dict) -> Inl
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
                 day_text = str(day_counter)
+                if day_counter == date.today().day and month == date.today().month and year == date.today().year:
+                    day_text = '🌞'
                 callback_data = f"new_order:delivery:date:{year}:{month}:{day_counter}"
                 row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
                 day_counter += 1

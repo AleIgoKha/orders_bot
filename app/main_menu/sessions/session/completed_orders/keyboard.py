@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from app.com_func import represent_utc_3
 
 
 # # Клавиатура кнопка "Изменить" для заказа
@@ -35,10 +36,7 @@ def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 
     current_orders = orders[start:end]
     
     for order in current_orders:
-        if order.issue_datetime:
-            issue_datetime = order.issue_datetime
-        else:
-            issue_datetime = order.creation_datetime
+        issue_datetime = represent_utc_3(order.issue_datetime)
         
         text = f"{issue_datetime.strftime("%d-%m-%Y")} - №{order.order_number} - {order.client_name}"
         callback_data = f"completed_orders:order_id_{order.order_id}"
@@ -104,6 +102,6 @@ issue_all = InlineKeyboardMarkup(inline_keyboard=[
 
 
 issue_all_confirmation = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='completed_orders:mark_issued_all')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data=f'completed_orders:back')]
+    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='completed_orders:mark_issued_all'),
+    InlineKeyboardButton(text='❌ Отмена', callback_data=f'completed_orders:back')]
     ])
