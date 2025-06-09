@@ -1,11 +1,31 @@
 from datetime import timezone
 import pytz
 
-
-def represent_utc_3(datetime):
-    utc_dt = datetime.replace(tzinfo=timezone.utc)
-    local_dt = utc_dt.astimezone(pytz.timezone("Europe/Chisinau"))
+# Фурнкция для правильного отображения времени с часовым поясом
+def represent_utc_3(date_time):
+    if date_time.tzinfo is None:
+        date_time = date_time.replace(tzinfo=timezone.utc)
+    local_dt = date_time.astimezone(pytz.timezone("Europe/Chisinau"))
     return local_dt
+
+def vacc_price_counter(item_vacc, qty, unit):
+    if item_vacc:
+        qty_gramms = qty * 1000
+        if unit != 'кг':
+            vacc_price = 5
+        elif qty == 0:
+            vacc_price = 0
+        elif 0 < qty_gramms < 200:
+            vacc_price = 5
+        elif 200 <= qty_gramms < 300:
+            vacc_price = 6
+        elif 300 <= qty_gramms:
+            vacc_price = (qty_gramms * 2) / 100
+    else:
+        vacc_price = 0
+    
+    return vacc_price
+
 
 
 # Функция группирует данные полученные из запроса
@@ -100,20 +120,11 @@ def order_text(order_items_data):
             else:
                 text += f'Заказано - <b>{int(item_qty)} {item_unit}</b>\n' \
                         f'Взвешено - <b>{int(item_qty_fact)} {item_unit}</b>\n'
-            # Рассчитываем стоимость всключая вакуум
             
-            if item_vacc:
-                item_qty_fact_gramms = item_qty_fact * 1000
-                if item_qty_fact_gramms == 0:
-                    vacc_price = 0
-                elif 0 < item_qty_fact_gramms < 200:
-                    vacc_price = 5
-                elif 200 <= item_qty_fact_gramms < 300:
-                    vacc_price = 6
-                elif 300 <= item_qty_fact_gramms:
-                    vacc_price = (item_qty_fact_gramms * 2) / 100
-            else:
-                vacc_price = 0
+            # считаем стоимость вакуума
+            vacc_price = vacc_price_counter(item_vacc,
+                                            item_qty_fact,
+                                            item_unit)
 
             item_price = round(item_qty_fact * item_price + vacc_price, 2)
             total_price += item_price

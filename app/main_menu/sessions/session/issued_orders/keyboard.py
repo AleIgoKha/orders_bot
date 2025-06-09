@@ -3,6 +3,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import timezone
 import pytz
 
+from app.com_func import represent_utc_3
+
 
 # выбор заказа
 def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 10):
@@ -20,10 +22,7 @@ def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 
     current_orders = orders[start:end]
     
     for order in current_orders:
-        # Convert UTC to local timezone
-        utc_dt = order.finished_datetime.replace(tzinfo=timezone.utc)
-        local_dt = utc_dt.astimezone(pytz.timezone("Europe/Chisinau"))
-        formatted_date = local_dt.strftime("%d-%m-%Y")
+        formatted_date = represent_utc_3(order.finished_datetime).strftime("%d-%m-%Y")
         
         text = f"{formatted_date} - №{order.order_number} - {order.client_name}"
         callback_data = f"issued_orders:order_id_{order.order_id}"

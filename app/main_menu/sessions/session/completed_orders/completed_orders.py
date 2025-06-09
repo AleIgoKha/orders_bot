@@ -8,7 +8,7 @@ from pytz import timezone
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
 from app.database.requests import change_order_data, get_orders_sorted, get_order_items, get_orders
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
-from app.com_func import group_orders_items
+from app.com_func import group_orders_items, vacc_price_counter
 from app.states import Order
 
 completed_orders = Router()
@@ -25,33 +25,26 @@ def order_message(order_items_data):
         for item in items_list:
             item_name = order_items_data[item]['item_name']
             item_price = float(order_items_data[item]['item_price'])
-            item_qty = float(order_items_data[item]['item_qty'])
             item_unit = order_items_data[item]['item_unit']
             item_qty_fact = float(order_items_data[item]['item_qty_fact'])
             item_vacc = order_items_data[item]['item_vacc']
-                    
+                 
+            vacc_price = vacc_price_counter(item_vacc, item_qty_fact, item_unit)   
             
             if item_vacc:
                 item_vacc = ' (вак. уп.)'
-                if item_qty_fact < 200:
-                    vacc_price = 5
-                elif 200 <= item_qty_fact < 300:
-                    vacc_price = 6
-                elif 300 <= item_qty_fact:
-                    vacc_price = (item_qty_fact * 2) / 100
             else:
                 item_vacc = ''
-                vacc_price = 0
                 
             text += f'{item_name}{item_vacc}'
-            item_price = round(item_qty_fact * item_price + vacc_price)
+            item_price = item_qty_fact * item_price + vacc_price
             if item_unit == 'кг': # Переводим килограмы в граммы
                 text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
             else:
                 text += f' - {int(item_qty_fact)} {item_unit}\n'
             # Рассчитываем стоимость всключая вакуум
             
-            total_price += round(item_price)
+            total_price += item_price
     
     delivery_price = order_items_data['delivery_price']
     
@@ -69,7 +62,7 @@ def order_message(order_items_data):
     if order_disc > 0:
         text += f'\nРазмер скидки <b>{order_disc}%</b>\n'
     
-    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} руб.</b>\n\n' \
+    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + round(delivery_price))} руб.</b>\n\n' \
             'До встречи!'
     
     return text
