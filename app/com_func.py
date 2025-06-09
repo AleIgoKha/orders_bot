@@ -81,7 +81,7 @@ def order_text(order_items_data):
     if items_list: # Проверяем пуст ли заказ
         for item in items_list:
             item_name = order_items_data[item]['item_name']
-            item_price = order_items_data[item]['item_price']
+            item_price = float(order_items_data[item]['item_price'])
             item_qty = float(order_items_data[item]['item_qty'])
             item_unit = order_items_data[item]['item_unit']
             item_qty_fact = float(order_items_data[item]['item_qty_fact'])
@@ -103,18 +103,19 @@ def order_text(order_items_data):
             # Рассчитываем стоимость всключая вакуум
             
             if item_vacc:
-                if item_qty_fact == 0:
+                item_qty_fact_gramms = item_qty_fact * 1000
+                if item_qty_fact_gramms == 0:
                     vacc_price = 0
-                elif 0 < item_qty_fact < 200:
+                elif 0 < item_qty_fact_gramms < 200:
                     vacc_price = 5
-                elif 200 <= item_qty_fact < 300:
+                elif 200 <= item_qty_fact_gramms < 300:
                     vacc_price = 6
-                elif 300 <= item_qty_fact:
-                    vacc_price = (item_qty_fact * 2) / 100
+                elif 300 <= item_qty_fact_gramms:
+                    vacc_price = (item_qty_fact_gramms * 2) / 100
             else:
                 vacc_price = 0
 
-            item_price = round(item_qty_fact * float(item_price) + vacc_price, 2)
+            item_price = round(item_qty_fact * item_price + vacc_price, 2)
             total_price += item_price
             
             text += f'Стоимость - <b>{item_price} р</b>\n'
