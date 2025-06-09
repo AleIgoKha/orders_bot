@@ -1,13 +1,13 @@
-from datetime import timezone
 import pytz
 
 # Фурнкция для правильного отображения времени с часовым поясом
 def represent_utc_3(date_time):
+    tz = pytz.timezone("Europe/Chisinau")
     if date_time.tzinfo is None:
-        date_time = date_time.replace(tzinfo=timezone.utc)
-    local_dt = date_time.astimezone(pytz.timezone("Europe/Chisinau"))
-    return local_dt
+        return tz.localize(date_time)
+    return date_time.astimezone(tz)
 
+# функция для подсчета стоимости вакуумной упаковки
 def vacc_price_counter(item_vacc, qty, unit):
     if item_vacc:
         qty_gramms = qty * 1000
@@ -25,7 +25,6 @@ def vacc_price_counter(item_vacc, qty, unit):
         vacc_price = 0
     
     return vacc_price
-
 
 
 # Функция группирует данные полученные из запроса

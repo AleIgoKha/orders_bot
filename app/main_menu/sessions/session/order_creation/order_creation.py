@@ -564,7 +564,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else localized_midnight,
+        'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else localized_midnight,
         'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)

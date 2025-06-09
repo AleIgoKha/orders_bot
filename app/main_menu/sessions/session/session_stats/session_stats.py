@@ -73,9 +73,13 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
+    naive_dt = datetime(**finished_datetime)
+    aware_dt = represent_utc_3(naive_dt)
+            
+    
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                     datetime=finished_datetime,
+                                     datetime=aware_dt,
                                      issued=True)
     
     if len(orders) == 0:
@@ -183,9 +187,12 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
+    naive_dt = datetime(**creation_datetime)
+    aware_dt = represent_utc_3(naive_dt)
+    
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                      datetime=creation_datetime,
+                                      datetime=aware_dt,
                                       issued=False)
     
     if len(orders) == 0:

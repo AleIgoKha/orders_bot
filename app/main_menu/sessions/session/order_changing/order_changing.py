@@ -683,7 +683,7 @@ async def issue_menu_handler(callback: CallbackQuery, state: FSMContext):
 
     text = order_text(order_items_data)
     issue_method = order_items_data['issue_method']
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     
     await callback.message.edit_text(text=text,
                                      reply_markup=kb.issue_menu(issue_method, issue_datetime),
@@ -814,7 +814,7 @@ async def delivery_price_receiver_handler(message: Message, state: FSMContext):
     # Выводим данные одного заказа в сообщени
     text = order_text(order_items_data)
     issue_method = order_items_data['issue_method']
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
@@ -873,7 +873,7 @@ async def issue_place_receiver_handler(message: Message, state: FSMContext):
     # Выводим данные одного заказа в сообщени
     text = order_text(order_items_data)
     issue_method = order_items_data['issue_method']
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
@@ -997,7 +997,11 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
         except TelegramBadRequest:
             return None
     
-    order_data = {'issue_datetime': datetime(**issue_datetime)}
+    naive_dt = datetime(**issue_datetime)
+    aware_dt = represent_utc_3(naive_dt)
+            
+    order_data = {'issue_datetime': aware_dt}
+    
     await change_order_data(order_id, order_data)
     
     # Достаем данные о продуктах одного заказа
@@ -1007,7 +1011,7 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
     # Выводим данные одного заказа в сообщени
     text = order_text(order_items_data)
     issue_method = order_items_data['issue_method']
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
@@ -1030,7 +1034,10 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
             'month': date_comp[1],
             'day': date_comp[2]
         }
-        order_data = {'issue_datetime': datetime(**issue_datetime)}
+        naive_dt = datetime(**issue_datetime)
+        aware_dt = represent_utc_3(naive_dt)
+                
+        order_data = {'issue_datetime': aware_dt}
     else:
         order = await get_order(order_id=order_id)
         order_data = {'issue_datetime': order.creation_datetime}
@@ -1122,8 +1129,11 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
             return None
         except TelegramBadRequest:
             return None
+        
+    naive_dt = datetime(**issue_datetime_parts)
+    aware_dt = represent_utc_3(naive_dt)
             
-    order_data = {'issue_datetime': datetime(**issue_datetime_parts)}
+    order_data = {'issue_datetime': aware_dt}
     await change_order_data(order_id, order_data)
     
     # Достаем данные о продуктах одного заказа
@@ -1133,7 +1143,7 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
     # Выводим данные одного заказа в сообщени
     text = order_text(order_items_data)
     issue_method = order_items_data['issue_method']
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
@@ -1152,7 +1162,7 @@ async def delete_time_handler(callback: CallbackQuery, state: FSMContext):
     order_items = await get_order_items(order_id)
     order_items_data = group_orders_items(order_items)[0]
     
-    issue_datetime = order_items_data['issue_datetime']
+    issue_datetime = represent_utc_3(order_items_data['issue_datetime'])
     issue_datetime_parts = {
         'year': issue_datetime.year,
         'month': issue_datetime.month,
@@ -1161,7 +1171,10 @@ async def delete_time_handler(callback: CallbackQuery, state: FSMContext):
         'minute': 0
         }
     
-    order_data = {'issue_datetime': datetime(**issue_datetime_parts)}
+    naive_dt = datetime(**issue_datetime_parts)
+    aware_dt = represent_utc_3(naive_dt)
+    
+    order_data = {'issue_datetime': aware_dt}
     await change_order_data(order_id, order_data)
     
     await issue_menu_handler(callback, state)
