@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime
 
 import app.main_menu.sessions.session.keyboard as kb
 from app.main_menu.main_menu import main_menu_handler 

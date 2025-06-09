@@ -9,7 +9,7 @@ from io import BytesIO
 from unidecode import unidecode
 
 import app.main_menu.sessions.session.order_downloading.keyboard as kb
-from app.com_func import group_orders_items
+from app.com_func import group_orders_items, vacc_price_counter
 from app.database.requests import get_orders_items, get_session, get_orders, get_session_items_stats
 
 order_downloading = Router()
@@ -100,17 +100,10 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
                     p.add_run(f'Взвешено - {int(item_qty_fact)} {item_unit} / ')
                 # Рассчитываем стоимость всключая вакуум
                 
-                if item_vacc:
-                    if item_qty_fact == 0:
-                        vacc_price = 0
-                    elif 0 < item_qty_fact < 200:
-                        vacc_price = 5
-                    elif 200 <= item_qty_fact < 300:
-                        vacc_price = 6
-                    elif 300 <= item_qty_fact:
-                        vacc_price = (item_qty_fact * 2) // 100
-                else:
-                    vacc_price = 0
+                # считаем стоимость вакуума
+                vacc_price = vacc_price_counter(item_vacc,
+                                                item_qty_fact,
+                                                item_unit)
 
                 item_price = round(item_qty_fact * float(item_price) + vacc_price)
                 total_price += item_price

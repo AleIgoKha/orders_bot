@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 
 import app.main_menu.sessions.session.order_creation.keyboard as kb
@@ -549,8 +549,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
     session_id = data['session_id']
     
     tz = pytz.timezone("Europe/Chisinau")
-    naive_midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    localized_midnight = tz.localize(naive_midnight)
+    localized_midnight = tz.localize(datetime.combine(datetime.now(tz).date(), time(0, 0)))
 
     
     # Создаем новый заказ в базе данных
@@ -565,7 +564,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': datetime(**data['issue_datetime']) if data['issue_datetime'] else localized_midnight,
+        'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else localized_midnight,
         'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)

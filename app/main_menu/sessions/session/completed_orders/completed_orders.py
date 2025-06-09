@@ -8,7 +8,7 @@ from pytz import timezone
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
 from app.database.requests import change_order_data, get_orders_sorted, get_order_items, get_orders
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
-from app.com_func import group_orders_items
+from app.com_func import group_orders_items, vacc_price_counter, represent_utc_3
 from app.states import Order
 
 completed_orders = Router()
@@ -25,33 +25,26 @@ def order_message(order_items_data):
         for item in items_list:
             item_name = order_items_data[item]['item_name']
             item_price = float(order_items_data[item]['item_price'])
-            item_qty = float(order_items_data[item]['item_qty'])
             item_unit = order_items_data[item]['item_unit']
             item_qty_fact = float(order_items_data[item]['item_qty_fact'])
             item_vacc = order_items_data[item]['item_vacc']
-                    
+                 
+            vacc_price = vacc_price_counter(item_vacc, item_qty_fact, item_unit)   
             
             if item_vacc:
                 item_vacc = ' (вак. уп.)'
-                if item_qty_fact < 200:
-                    vacc_price = 5
-                elif 200 <= item_qty_fact < 300:
-                    vacc_price = 6
-                elif 300 <= item_qty_fact:
-                    vacc_price = (item_qty_fact * 2) / 100
             else:
                 item_vacc = ''
-                vacc_price = 0
                 
             text += f'{item_name}{item_vacc}'
-            item_price = round(item_qty_fact * item_price + vacc_price)
+            item_price = item_qty_fact * item_price + vacc_price
             if item_unit == 'кг': # Переводим килограмы в граммы
                 text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
             else:
                 text += f' - {int(item_qty_fact)} {item_unit}\n'
             # Рассчитываем стоимость всключая вакуум
             
-            total_price += round(item_price)
+            total_price += item_price
     
     delivery_price = order_items_data['delivery_price']
     
@@ -69,7 +62,7 @@ def order_message(order_items_data):
     if order_disc > 0:
         text += f'\nРазмер скидки <b>{order_disc}%</b>\n'
     
-    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + int(delivery_price))} руб.</b>\n\n' \
+    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + round(delivery_price))} руб.</b>\n\n' \
             'До встречи!'
     
     return text
@@ -140,7 +133,7 @@ async def issued_order_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод заказа в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:change_status")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = datetime.now(timezone("Europe/Chisinau"))
+    finished_datetime = represent_utc_3(datetime.now())
     await state.update_data(finished_datetime={
                                 'year': finished_datetime.year,
                                 'month': finished_datetime.month,
@@ -188,10 +181,10 @@ async def finished_datetime_receiver_handler(message: Message, state: FSMContext
         except TelegramBadRequest:
             return None
         
-    text_date = datetime(**finished_datetime).strftime('%d-%m-%Y')
+    text_date = represent_utc_3(datetime(**finished_datetime))
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
-                                        text=f'Вы указали дату выдачи заказа <b>{text_date}</b>.',
+                                        text=f'Вы указали дату выдачи заказа <b>{text_date.strftime('%d-%m-%Y')}</b>.',
                                         reply_markup=kb.confirm_change_status(order_id),
                                         parse_mode='HTML')
 
@@ -202,9 +195,8 @@ async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     order_id = data['order_id']
     finished_datetime = data['finished_datetime']
-    print(datetime(**finished_datetime))
     order_data = {
-        'finished_datetime': datetime(**finished_datetime),
+        'finished_datetime': represent_utc_3(datetime(**finished_datetime)),
         'order_issued': True,
         'order_completed': False
     }
@@ -216,10 +208,10 @@ async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод всех заказов в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:issue_all")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = datetime.now(timezone("Europe/Chisinau")).strftime('%d-%m-%Y')
+    finished_datetime = represent_utc_3(datetime.now())
     await callback.message.edit_text(text='❓ <b>ПОДТВЕРДИТЕ ВЫДАЧУ ВСЕХ ЗАКАЗОВ</b>\n\n' \
                                             'Чтобы подтвердить выдачу ВСЕХ готовых заказов введите дату выдачи в формате <i>ДД-ММ-ГГГ</i>\n\n' \
-                                            f'Сегодня - <b>{finished_datetime}</b>',
+                                            f'Сегодня - <b>{finished_datetime.strftime('%d-%m-%Y')}</b>',
                                      reply_markup=kb.issue_all,
                                      parse_mode='HTML')
     await state.set_state(Order.finished_datetime_all)
@@ -230,7 +222,7 @@ async def change_status_handler(callback: CallbackQuery, state: FSMContext):
 async def finished_datetime_all_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
-    finished_datetime = datetime.now(timezone("Europe/Chisinau")).strftime('%d-%m-%Y')
+    finished_datetime = represent_utc_3(datetime.now())
     
     try:
         date_comp = [int(_) for _ in message.text.split('-')]
@@ -251,17 +243,17 @@ async def finished_datetime_all_receiver_handler(message: Message, state: FSMCon
                                                 text='❗ <b>НЕВЕРНО УКАЗАНА ДАТА</b>\n\n' \
                                                     '❓ <b>ПОДТВЕРДИТЕ ВЫДАЧУ ВСЕХ ЗАКАЗОВ</b>\n\n' \
                                                     'Чтобы подтвердить выдачу ВСЕХ готовых заказов введите дату выдачи в формате <i>ДД-ММ-ГГГ</i>\n\n' \
-                                                    f'Сегодня - <b>{finished_datetime}</b>',
+                                                    f'Сегодня - <b>{finished_datetime.strftime('%d-%m-%Y')}</b>',
                                                 reply_markup=kb.issue_all,
                                                 parse_mode='HTML')
             return None
         except TelegramBadRequest:
             return None
         
-    text_date = datetime(**finished_datetime).strftime('%d-%m-%Y')
+    text_date = represent_utc_3(datetime(**finished_datetime))
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
-                                        text=f'Вы указали дату выдачи для ВСЕХ готовых заказов <b>{text_date}</b>.',
+                                        text=f'Вы указали дату выдачи для ВСЕХ готовых заказов <b>{text_date.strftime('%d-%m-%Y')}</b>.',
                                         reply_markup=kb.issue_all_confirmation,
                                         parse_mode='HTML')
 
@@ -277,9 +269,8 @@ async def mark_issued_all_handler(callback: CallbackQuery, state: FSMContext):
     for order in orders:
         order_id = order.order_id
         finished_datetime = data['finished_datetime']
-        print(datetime(**finished_datetime))
         order_data = {
-            'finished_datetime': datetime(**finished_datetime),
+            'finished_datetime': represent_utc_3(datetime(**finished_datetime)),
             'order_issued': True,
             'order_completed': False
         }

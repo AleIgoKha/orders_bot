@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
-from app.com_func import represent_utc_3
+from app.com_func import represent_utc_3, vacc_price_counter
 import app.main_menu.sessions.session.session_stats.keyboard as kb
 from app.database.requests import get_session_stats, get_orders_by_date, get_items
 
@@ -73,9 +73,13 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
+    naive_dt = datetime(**finished_datetime)
+    aware_dt = represent_utc_3(naive_dt)
+            
+    
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                     datetime=finished_datetime,
+                                     datetime=aware_dt,
                                      issued=True)
     
     if len(orders) == 0:
@@ -90,18 +94,10 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
         # получаем все товары одного заказа
         items = await get_items(order.order_id)
         for item in items:
-            # считаем стоимость вакуума, если он есть
-            if item.item_vacc:
-                if item.item_qty_fact == 0:
-                    vacc_price = 0
-                elif 0 < item.item_qty_fact < 200:
-                    vacc_price = 5
-                elif 200 <= item.item_qty_fact < 300:
-                    vacc_price = 6
-                elif 300 <= item.item_qty_fact:
-                    vacc_price = (item.item_qty_fact * 2) / 100
-            else:
-                vacc_price = 0
+            # считаем стоимость вакуума
+            vacc_price = vacc_price_counter(item.item_vacc,
+                                            item.item_qty_fact,
+                                            item.unit)
             
             total_income += item.item_qty_fact * item.item_price + vacc_price
     
@@ -148,18 +144,10 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
         # получаем все товары одного заказа
         items = await get_items(order.order_id)
         for item in items:
-            # считаем стоимость вакуума, если он есть
-            if item.item_vacc:
-                if item.item_qty_fact == 0:
-                    vacc_price = 0
-                elif 0 < item.item_qty_fact < 200:
-                    vacc_price = 5
-                elif 200 <= item.item_qty_fact < 300:
-                    vacc_price = 6
-                elif 300 <= item.item_qty_fact:
-                    vacc_price = (item.item_qty_fact * 2) / 100
-            else:
-                vacc_price = 0
+            # считаем стоимость вакуума
+            vacc_price = vacc_price_counter(item.item_vacc,
+                                            item.item_qty_fact,
+                                            item.unit)
             
             total_income += item.item_qty_fact * item.item_price + vacc_price
     
@@ -199,9 +187,12 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
+    naive_dt = datetime(**creation_datetime)
+    aware_dt = represent_utc_3(naive_dt)
+    
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                      datetime=creation_datetime,
+                                      datetime=aware_dt,
                                       issued=False)
     
     if len(orders) == 0:
@@ -216,18 +207,10 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
         # получаем все товары одного заказа
         items = await get_items(order.order_id)
         for item in items:
-            # считаем стоимость вакуума, если он есть
-            if item.item_vacc:
-                if item.item_qty == 0:
-                    vacc_price = 0
-                elif 0 < item.item_qty < 200:
-                    vacc_price = 5
-                elif 200 <= item.item_qty < 300:
-                    vacc_price = 6
-                elif 300 <= item.item_qty:
-                    vacc_price = (item.item_qty * 2) / 100
-            else:
-                vacc_price = 0
+            # считаем стоимость вакуума
+            vacc_price = vacc_price_counter(item.item_vacc,
+                                            item.item_qty,
+                                            item.unit)
             
             est_revenue += item.item_qty * item.item_price + vacc_price
     
@@ -276,18 +259,10 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
         # получаем все товары одного заказа
         items = await get_items(order.order_id)
         for item in items:
-            # считаем стоимость вакуума, если он есть
-            if item.item_vacc:
-                if item.item_qty == 0:
-                    vacc_price = 0
-                elif 0 < item.item_qty < 200:
-                    vacc_price = 5
-                elif 200 <= item.item_qty < 300:
-                    vacc_price = 6
-                elif 300 <= item.item_qty:
-                    vacc_price = (item.item_qty * 2) / 100
-            else:
-                vacc_price = 0
+            # считаем стоимость вакуума
+            vacc_price = vacc_price_counter(item.item_vacc,
+                                            item.item_qty,
+                                            item.unit)
             
             est_revenue += item.item_qty * item.item_price + vacc_price
     
