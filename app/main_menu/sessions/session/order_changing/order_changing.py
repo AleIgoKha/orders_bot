@@ -89,8 +89,10 @@ async def change_order_name_handler(callback: CallbackQuery, state: FSMContext):
 @order_changing.callback_query(F.data == 'change_item_qty_fact')
 async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('change_item_qty_page_'):
-        page = int(callback.data.split('_')[-1])
-        
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
         await state.update_data(callback_name=callback.data)
@@ -129,7 +131,10 @@ async def change_item_qty_handler(callback: CallbackQuery, state: FSMContext):
 @order_changing.callback_query(F.data == 'add_new_item')
 async def choose_new_item_handler(callback: CallbackQuery):
     if callback.data.startswith('add_item_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     await callback.message.edit_text(text='❓<b>ВЫБЕРИТЕ ТОВАР ДЛЯ ДОБАВЛЕНИЯ</b>❓',
@@ -470,7 +475,10 @@ async def change_item_disc_handler(callback: CallbackQuery, state: FSMContext):
 @order_changing.callback_query(F.data == 'change_add_item_vacc')
 async def change_vacc_to_order_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('change_vacc_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         await state.update_data(from_callback=callback.data)
         page = 1
@@ -637,9 +645,13 @@ async def change_session_handler(callback: CallbackQuery, state: FSMContext):
     current_session = session_data.session_name
 
     if callback.data.startswith('change_order:change_session_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
+        
     await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ СЕССИЮ</b>\n\n' \
                                             f'Текущая сессия - <b>{current_session}</b>',
                                      reply_markup=await kb.choose_session(page=page),
@@ -1039,8 +1051,7 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
                 
         order_data = {'issue_datetime': aware_dt}
     else:
-        order = await get_order(order_id=order_id)
-        order_data = {'issue_datetime': order.creation_datetime}
+        order_data = {'issue_datetime': None}
     await change_order_data(order_id, order_data)
     
     await issue_menu_handler(callback, state)

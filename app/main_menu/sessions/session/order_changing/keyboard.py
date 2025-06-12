@@ -85,12 +85,20 @@ def choose_change_item_qty(items_data_list: list, page: int = 1, items_per_page:
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"change_item_qty_page_{page - 1}")
         )
-    
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="change_item_qty_page_edge")
+        )
+        
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'change_item_data'))
     
     if end < len(items_data_list):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"change_item_qty_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="change_item_qty_page_edge")
         )
         
     if navigation_buttons:
@@ -121,12 +129,20 @@ async def choose_add_item(page: int = 1, products_per_page: int = 8):
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"add_item_page_{page - 1}")
         )
-    
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="add_item_page_edge")
+        )
+        
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_item_data'))
     
     if end < len(products):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"add_item_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="add_item_page_edge")
         )
         
     if navigation_buttons:
@@ -198,12 +214,20 @@ async def choose_change_product_vacc(products: dict, from_callback: str, page: i
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"change_vacc_page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="change_vacc_page_edge")
+        )
     
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_item_data'))
 
     if end < len(products):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"change_vacc_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="change_vacc_page_edge")
         )
         
     if navigation_buttons:
@@ -250,12 +274,20 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"change_order:change_session_page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="change_order:change_session_page_edge")
+        )
     
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='change_order_data'))
     
     if end < len(sessions):
         navigation_buttons.append(
             InlineKeyboardButton(text="Вперед ➡️", callback_data=f"change_order:change_session_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="change_order:change_session_page_edge")
         )
         
     if navigation_buttons:

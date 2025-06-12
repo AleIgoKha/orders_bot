@@ -17,6 +17,14 @@ issued_orders = Router()
 @issued_orders.callback_query(F.data == 'session:issued_orders')
 @issued_orders.callback_query(F.data == 'issued_orders:back')
 async def issued_orders_handler(callback: CallbackQuery, state: FSMContext):
+    if callback.data.startswith('issued_orders:page_'):
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
+    else:
+        page = 1
+    
     # Запоминаем, для дальнейших различий при изменении заказа
     if callback.data == 'session:issued_orders':
         await state.update_data(callback_name=callback.data,
@@ -44,11 +52,6 @@ async def issued_orders_handler(callback: CallbackQuery, state: FSMContext):
         if callback.data != 'session:issued_orders':
             return await back_to_session_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования меню сессии
-    
-    if callback.data.startswith('issued_orders:page_'):
-        page = int(callback.data.split('_')[-1])
-    else:
-        page = 1
         
     await callback.message.edit_text(text='👌🏽 <b>ВЫДАННЫЕ ЗАКАЗЫ</b>',
                                      reply_markup=kb.choose_order(orders=orders, desc=desc, page=page),

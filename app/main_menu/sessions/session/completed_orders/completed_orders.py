@@ -6,7 +6,7 @@ from datetime import datetime
 from pytz import timezone
 
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
-from app.database.requests import change_order_data, get_orders_sorted, get_order_items, get_orders
+from app.database.requests import change_order_data, get_not_issued_orders_sorted, get_order_items, get_orders
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.com_func import group_orders_items, vacc_price_counter, represent_utc_3
 from app.states import Order
@@ -74,6 +74,14 @@ def order_message(order_items_data):
 @completed_orders.callback_query(F.data == 'session:completed_orders')
 @completed_orders.callback_query(F.data == 'completed_orders:back')
 async def completed_orders_list_handler(callback: CallbackQuery, state: FSMContext):
+    if callback.data.startswith('completed_orders:page_'):
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
+    else:
+        page = 1
+    
     # Запоминаем, для дальнейших различий при изменении заказа
     if callback.data == 'session:completed_orders':
         await state.update_data(from_menu='completed_orders',
@@ -91,7 +99,7 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
     data = await state.get_data()
     session_id = data['session_id']
     desc = data['desc']
-    orders = await get_orders_sorted(session_id=session_id)
+    orders = await get_not_issued_orders_sorted(session_id=session_id)
     
     # если готовых заказов нет, то выводим алерт
     orders = [order for order in orders if order.order_completed == True]
@@ -102,11 +110,6 @@ async def completed_orders_list_handler(callback: CallbackQuery, state: FSMConte
         if callback.data != 'session:completed_orders':
             return await back_to_session_menu_handler(callback, state)
         return None # это сделано чтобы не было ошибки редактирования
-    
-    if callback.data.startswith('completed_orders:page_'):
-        page = int(callback.data.split('_')[-1])
-    else:
-        page = 1
         
     await callback.message.edit_text(text='☑️ <b>ГОТОВЫЕ ЗАКАЗЫ</b>',
                                      reply_markup=kb.choose_order(orders=orders, desc=desc, page=page),

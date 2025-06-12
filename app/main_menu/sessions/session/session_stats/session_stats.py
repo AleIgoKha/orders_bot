@@ -97,7 +97,7 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
             # считаем стоимость вакуума
             vacc_price = vacc_price_counter(item.item_vacc,
                                             item.item_qty_fact,
-                                            item.unit)
+                                            item.item_unit)
             
             total_income += item.item_qty_fact * item.item_price + vacc_price
     
@@ -147,7 +147,7 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
             # считаем стоимость вакуума
             vacc_price = vacc_price_counter(item.item_vacc,
                                             item.item_qty_fact,
-                                            item.unit)
+                                            item.item_unit)
             
             total_income += item.item_qty_fact * item.item_price + vacc_price
     
@@ -210,7 +210,7 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
             # считаем стоимость вакуума
             vacc_price = vacc_price_counter(item.item_vacc,
                                             item.item_qty,
-                                            item.unit)
+                                            item.item_unit)
             
             est_revenue += item.item_qty * item.item_price + vacc_price
     
@@ -262,7 +262,7 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
             # считаем стоимость вакуума
             vacc_price = vacc_price_counter(item.item_vacc,
                                             item.item_qty,
-                                            item.unit)
+                                            item.item_unit)
             
             est_revenue += item.item_qty * item.item_price + vacc_price
     

@@ -7,7 +7,7 @@ from decimal import Decimal
 import app.main_menu.sessions.session.order_processing.keyboard as kb
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
 from app.states import Item
-from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_items, get_orders_sorted
+from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_items, get_not_issued_orders_sorted
 from app.com_func import group_orders_items, order_text
 
 order_processing = Router()
@@ -36,7 +36,7 @@ async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     session_id = data['session_id']
     desc = data['desc']
-    orders = await get_orders_sorted(session_id=session_id)
+    orders = await get_not_issued_orders_sorted(session_id=session_id)
     
     # если готовых заказов нет, то выводим алерт
     orders = [order for order in orders if order.order_completed == False
@@ -55,7 +55,10 @@ async def orders_processing_handler(callback: CallbackQuery, state: FSMContext):
         return None
     
     if callback.data.startswith('order_processing:page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
         
@@ -178,8 +181,10 @@ async def process_order_data_handler(callback: CallbackQuery, state: FSMContext)
         return None
     
     if callback.data.startswith('item_page_'):
-        page = int(callback.data.split('_')[-1])
-        
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     

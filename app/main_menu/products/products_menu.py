@@ -119,7 +119,10 @@ async def list_product_handler(callback: CallbackQuery):
 @products_menu.callback_query(F.data.startswith('products_menu_product_page_'))
 async def choose_product_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('products_menu_product_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
         await state.update_data(from_callback=callback.data)
