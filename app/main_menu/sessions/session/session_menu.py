@@ -95,15 +95,15 @@ async def session_menu_handler(callback: CallbackQuery, state: FSMContext):
 async def back_to_session_menu_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
-    # Удаляем все сообщения из меню со списком заказов
-    if callback.data in ['back_from_order_processing', 'back_from_order_completed']:
-        for i in range(data['messages_sent']):
-            try:
-                message_id = data['message_id'] - i
-                if callback.message.message_id != message_id:
-                    await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
-            except TelegramBadRequest:
-                continue
+    # # Удаляем все сообщения из меню со списком заказов
+    # if callback.data in ['back_from_order_processing', 'back_from_order_completed']:
+    #     for i in range(data['messages_sent']):
+    #         try:
+    #             message_id = data['message_id'] - i
+    #             if callback.message.message_id != message_id:
+    #                 await callback.bot.delete_message(chat_id=data['chat_id'], message_id=message_id)
+    #         except TelegramBadRequest:
+    #             continue
             
     # Если вернулись из загрузки файлов
     if callback.data == 'back_from_order_download':
