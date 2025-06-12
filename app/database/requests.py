@@ -1,4 +1,4 @@
-from app.database.models import async_session, Product, Session, Order, Item
+from app.database.models import async_session, Product, Session, Order, Item, Outlet
 
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
 from decimal import Decimal
@@ -21,10 +21,15 @@ async def add_product(session, product_data):
 
 @connection
 async def add_session(session, session_data):
-    session.add(Session(session_name=session_data['session_name'],
-                        session_descr=session_data['session_descr']))
+    session.add(Session(**session_data))
     await session.commit()
     
+    
+@connection
+async def add_outlet(session, outlet_data):
+    session.add(Outlet(**outlet_data))
+    await session.commit()    
+
 
 @connection
 async def add_order(session, order_data, session_id):
@@ -70,6 +75,13 @@ async def add_order_items(session, items_data):
 async def get_sessions(session):
     result = await session.scalars(select(Session).order_by(asc(Session.session_name)))
     return result.all()
+
+
+@connection
+async def get_outlets(session):
+    result = await session.scalars(select(Outlet).order_by(asc(Outlet.outlet_name)))
+    return result.all()
+
 
 @connection
 async def get_session(session, session_id):
@@ -176,12 +188,22 @@ async def get_orders_by_date(session, session_id, issued, datetime: datetime=Non
     return issued_orders.all()
 
 
+# для законченых заказов
 @connection
 async def get_orders_sorted(session, session_id):
     order_data = await session.scalars(select(Order) \
                                        .where(Order.session_id == session_id) \
                                        .order_by(desc(Order.finished_datetime),
                                                  desc(Order.issue_datetime)))
+    
+    return order_data.all()
+
+
+@connection
+async def get_not_issued_orders_sorted(session, session_id):
+    order_data = await session.scalars(select(Order) \
+                                       .where(Order.session_id == session_id) \
+                                       .order_by(func.coalesce(Order.issue_datetime, Order.creation_datetime)))
     
     return order_data.all()
 

@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.com_func import represent_utc_3
 
@@ -36,9 +36,12 @@ def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 
     current_orders = orders[start:end]
     
     for order in current_orders:
-        issue_datetime = represent_utc_3(order.issue_datetime)
-        
-        text = f"{issue_datetime.strftime("%d-%m-%Y")} - №{order.order_number} - {order.client_name}"
+        if order.issue_datetime:
+            issue_datetime = f' - {represent_utc_3(order.issue_datetime).strftime("%d-%m-%Y")}'
+        else:
+            issue_datetime = ''
+            
+        text = f"№{order.order_number} - {order.client_name}{issue_datetime}"
         callback_data = f"completed_orders:order_id_{order.order_id}"
         order_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
         
@@ -56,12 +59,20 @@ def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"completed_orders:page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="completed_orders:page_edge")
+        )
     
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='session:back'))
     
     if end < len(orders):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"completed_orders:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="completed_orders:page_edge")
         )
         
     if navigation_buttons:

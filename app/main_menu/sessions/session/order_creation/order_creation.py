@@ -228,7 +228,10 @@ async def back_to_order_creation_handler(callback: CallbackQuery, state: FSMCont
 @order_creation.callback_query(F.data == 'new_order:add_product')
 async def choose_product_handler(callback: CallbackQuery):
     if callback.data.startswith('product_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     await callback.message.edit_text(text='❓ <b> ВЫБЕРИТЕ ТОВАР</b>',
@@ -413,7 +416,10 @@ async def change_order_data_handler(message: Message, state: FSMContext):
 async def choose_change_product_handler(callback: CallbackQuery, state: FSMContext):
     # получаем список словарей с информацией о товаре
     if callback.data.startswith('product_data_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     data = await state.get_data()
@@ -564,7 +570,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else localized_midnight,
+        'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else None,
         'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)
@@ -600,7 +606,10 @@ async def confirm_order_cancelation_handler(callback: CallbackQuery, state: FSMC
 @order_creation.callback_query(F.data == 'delete_vacc')
 async def add_vacc_to_order_handler(callback: CallbackQuery, state: FSMContext):
     if callback.data.startswith('add_vacc_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         await state.update_data(from_callback=callback.data)
         page = 1
@@ -668,7 +677,10 @@ async def change_session_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_session = data['session_name']
     if callback.data.startswith('new_order:change_session_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ СЕССИЮ</b>\n\n' \

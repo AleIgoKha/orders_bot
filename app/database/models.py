@@ -76,6 +76,18 @@ class Item(Base):
     item_vacc: Mapped[bool] = mapped_column(Boolean)
     
     order: Mapped["Order"] = relationship(back_populates='items')
+    
+
+# База данных с торговыми точками
+class Outlet(Base):
+    __tablename__ = 'outlets'
+    
+    outlet_id: Mapped[int] = mapped_column(primary_key=True)
+    outlet_name: Mapped[str] = mapped_column(String, nullable=False)
+    outlet_descr: Mapped[str] = mapped_column(String, nullable=True)
+    outlet_arch: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    
 
 async def async_main():
     async with engine.begin() as conn:

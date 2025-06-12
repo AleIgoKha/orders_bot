@@ -28,7 +28,10 @@ def session_menu_text(data):
 async def choose_session_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     if callback.data.startswith('session_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     await callback.message.edit_text('🗂 <b>МЕНЮ СЕССИЙ</b>',
@@ -156,7 +159,10 @@ async def confirm_new_session_handler(callback: CallbackQuery):
 async def archive_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     if callback.data.startswith('arch_session_page_'):
-        page = int(callback.data.split('_')[-1])
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
     else:
         page = 1
     await callback.message.edit_text('🗄 <b>АРХИВ СЕССИЙ</b>',

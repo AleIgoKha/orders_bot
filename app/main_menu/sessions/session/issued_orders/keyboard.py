@@ -38,12 +38,20 @@ def choose_order(orders: int, desc: bool, page: int = 1, orders_per_page: int = 
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"issued_orders:page_{page - 1}")
         )
-    
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="issued_orders:page_edge")
+        )
+        
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='session:back'))
     
     if end < len(orders):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"issued_orders:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="issued_orders:page_edge")
         )
         
     if navigation_buttons:

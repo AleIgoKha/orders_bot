@@ -17,6 +17,15 @@ class Session(StatesGroup):
     change_description = State()
     delete = State()
     
+
+class Outlet(StatesGroup):
+    name = State()
+    change_name = State()
+    description = State()
+    change_description = State()
+    delete = State()
+
+    
 class Order(StatesGroup):
     client_phone = State()
     change_client_phone = State()

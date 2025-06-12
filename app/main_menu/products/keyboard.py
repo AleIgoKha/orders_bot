@@ -54,12 +54,20 @@ def choose_product(products: list, page: int = 1, products_per_page: int = 8):
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"products_menu_product_page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="products_menu_product_page_edge")
+        )
     
     navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='products:list'))
     
     if end < len(products):
         navigation_buttons.append(
             InlineKeyboardButton(text="Далее ➡️", callback_data=f"products_menu_product_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="products_menu_product_page_edge")
         )
         
     if navigation_buttons:

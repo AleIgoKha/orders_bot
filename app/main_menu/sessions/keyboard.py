@@ -36,12 +36,20 @@ async def choose_session(page: int = 1, sessions_per_page: int = 8):
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"session_page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="session_page_edge")
+        )
     
     navigation_buttons.append(InlineKeyboardButton(text='🏠 В главное меню', callback_data='main:menu'))
     
     if end < len(sessions):
         navigation_buttons.append(
             InlineKeyboardButton(text="Вперед ➡️", callback_data=f"session_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="session_page_edge")
         )
         
     if navigation_buttons:
@@ -108,12 +116,20 @@ async def choose_arch_session(page: int = 1, sessions_per_page: int = 8):
         navigation_buttons.append(
             InlineKeyboardButton(text="⬅️ Назад", callback_data=f"arch_session_page_{page - 1}")
         )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="arch_session_page_edge")
+        )
     
-    navigation_buttons.append(InlineKeyboardButton(text='🏠 В главное меню', callback_data='sessions:choose_session'))
+    navigation_buttons.append(InlineKeyboardButton(text='🗂 В меню', callback_data='sessions:choose_session'))
     
     if end < len(sessions):
         navigation_buttons.append(
             InlineKeyboardButton(text="Вперед ➡️", callback_data=f"arch_session_page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="arch_session_page_edge")
         )
         
     if navigation_buttons:
