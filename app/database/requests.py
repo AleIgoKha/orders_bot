@@ -221,7 +221,8 @@ async def get_orders_sorted(session, session_id):
 async def get_not_issued_orders_sorted(session, session_id):
     order_data = await session.scalars(select(Order) \
                                        .where(Order.session_id == session_id) \
-                                       .order_by(func.coalesce(Order.issue_datetime, Order.creation_datetime)))
+                                       .order_by(desc(func.coalesce(Order.issue_datetime, Order.creation_datetime)),
+                                                 desc(Order.order_number)))
     
     return order_data.all()
 
