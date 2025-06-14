@@ -1,6 +1,7 @@
 from app.database.models import async_session, Product, Session, Order, Item, Outlet, Stock
 
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
+from sqlalchemy.orm import joinedload
 from decimal import Decimal
 from datetime import datetime
 
@@ -160,17 +161,6 @@ async def get_orders(session, session_id):
     
     return order_data.all()
 
-
-@connection
-async def get_stock_products(session, outlet_id):
-    stock_date = await session.scalars(
-        select(Stock, Product) \
-        .join(Stock, Product.product_id == Stock.product_id) \
-        .where(Stock.outlet_id == outlet_id) \
-        .order_by(asc(Product.product_name))
-    )
-    
-    return stock_date.all()
 
 
 # выводим выданные заказы по дате выдачи или без нее

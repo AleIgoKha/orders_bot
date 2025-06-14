@@ -113,8 +113,8 @@ class Transaction(Base):
     transaction_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('Europe/Chisinau', func.now()), nullable=False)
     transaction_type: Mapped[str] = mapped_column(String)
     product_name: Mapped[str] = mapped_column(String)
-    product_qty: Mapped[Decimal | None] = mapped_column(Numeric(9, 3), nullable=True)
-    product_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 3), nullable=True, default=Decimal("0.000"))
+    product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))
+    product_price: Mapped[Decimal] = mapped_column(Numeric(9, 2))
     
     
 

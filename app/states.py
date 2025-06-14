@@ -24,6 +24,10 @@ class Outlet(StatesGroup):
     description = State()
     change_description = State()
     delete = State()
+    
+    
+class Stock(StatesGroup):
+    replenishment = State()
 
     
 class Order(StatesGroup):
