@@ -62,7 +62,7 @@ def order_message(order_items_data):
     if order_disc > 0:
         text += f'\nРазмер скидки <b>{order_disc}%</b>\n'
     
-    text += f'\nК оплате - <b>{round(total_price * ((100 - order_disc) / 100) + round(delivery_price))} руб.</b>\n\n' \
+    text += f'\nК оплате - <b>{int(total_price * ((100 - order_disc) / 100) + round(delivery_price))} руб.</b>\n\n' \
             'До встречи!'
     
     return text
