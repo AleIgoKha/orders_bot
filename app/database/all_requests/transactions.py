@@ -1,4 +1,4 @@
-from app.database.models import async_session, Transaction
+from app.database.models import async_session, Transaction, Stock, Product
 
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
 from sqlalchemy.orm import joinedload
@@ -14,7 +14,6 @@ def connection(func):
 # добавляем новую транзакцию 
 @connection
 async def add_transaction(session, transaction_data):
-    
     session.add(Transaction(**transaction_data))
                 
     await session.commit()
@@ -48,3 +47,44 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
     last_transaction_data = await session.scalar(stmt)
     
     return last_transaction_data
+
+
+# проводим транзакцию списания товара
+@connection
+async def transaction_writeoff(session, outlet_id, stock_id, product_id, product_qty):
+    stock_data = await session.scalar(
+        select(Stock, Product) \
+        .join(Stock, Product.product_id == Stock.product_id) \
+        .where(Stock.outlet_id == outlet_id, Product.product_id == product_id) \
+        .options(joinedload(Stock.product)) \
+        .order_by(asc(Product.product_name))
+    )
+    
+    product_name = stock_data.product.product_name
+    stock_qty = stock_data.stock_qty
+    stock_id = stock_data.stock_id
+    product_price = stock_data.product.product_price
+    
+    transaction_data = {
+    'outlet_id': outlet_id,
+    'stock_id': stock_id,
+    'transaction_type': 'writeoff',
+    'product_name': product_name,
+    'product_qty': product_qty,
+    'product_price': product_price
+    }
+    
+    # добавляем транзакцию
+    session.add(Transaction(**transaction_data))
+    
+    stock_data = {
+        'stock_qty' : stock_qty - product_qty
+    }
+    
+    # обновляем склаж
+    await session.execute(update(Stock)
+                          .where(Stock.stock_id == stock_id)
+                          .values(stock_data)
+                    )
+                
+    await session.commit()

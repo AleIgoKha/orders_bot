@@ -61,8 +61,7 @@ async def get_out_stock_products(session, outlet_id):
 # данные одного продукта по его id и id его торговой точки
 @connection
 async def get_stock_product(session, outlet_id, product_id):
-    
-    stock_date = await session.scalar(
+    stock_data = await session.scalar(
         select(Stock, Product) \
         .join(Stock, Product.product_id == Stock.product_id) \
         .where(Stock.outlet_id == outlet_id, Product.product_id == product_id) \
@@ -70,12 +69,18 @@ async def get_stock_product(session, outlet_id, product_id):
         .order_by(asc(Product.product_name))
     )
     
-    return stock_date
+    return stock_data
 
 
 # изменение данных запасов продукта
 @connection
 async def change_stock_data(session, stock_id, stock_data):
-    
     await session.execute(update(Stock).where(Stock.stock_id == stock_id).values(stock_data))
+    await session.commit()
+    
+    
+# Удаляем товар из запасов торговой точки
+@connection
+async def delete_stock(session, stock_id):
+    await session.execute(delete(Stock).where(Stock.stock_id == stock_id))
     await session.commit()

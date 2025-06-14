@@ -28,6 +28,7 @@ class Outlet(StatesGroup):
     
 class Stock(StatesGroup):
     replenishment = State()
+    writeoff = State()
 
     
 class Order(StatesGroup):

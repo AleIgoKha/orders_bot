@@ -118,11 +118,65 @@ add_product = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment:add_product')]
 ])
 
-# Подтверждение добавления товара в запасы торговой точки
+# кнопка для отмены пополнения
 replenish_product = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment')]
 ])
 
 
+# выбор продукта для изменения
+def choose_product_writeoff(stock_data: list, page: int = 1, products_per_page: int = 8):
+    product_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * products_per_page
+    end = start + products_per_page
+    current_items = stock_data[start:end]
+    
+    for current_item in current_items:
+        product_name = current_item.product.product_name
+        stock_qty = current_item.stock_qty
+        product_unit = current_item.product.product_unit
+        
+        if product_unit != 'кг':
+            stock_qty = round(stock_qty)
+        
+        text = f"{product_name} - {stock_qty} {product_unit}"
+        callback_data = f"outlet:writeoff:product_id_{current_item.product.product_id}"
+        product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    product_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"outlet:writeoff:page_{page - 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:writeoff:page_edge")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:stock'))
+    
+    if end < len(stock_data):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data=f"outlet:writeoff:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="outlet:writeoff:page_edge")
+        )
+        
+    if navigation_buttons:
+        product_keyboard.row(*navigation_buttons)
+
+    return product_keyboard.as_markup()
+
+
+# кнопка для отмены списания и списания всего
+writeoff_product = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:writeoff')]
+])
 
 

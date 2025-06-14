@@ -8,8 +8,8 @@ from app.com_func import represent_utc_3
 import app.main_menu.outlets_menu.outlet_menu.stock_menu.keyboard as kb
 from app.states import Stock
 from app.database.requests import get_outlet, get_product
-from app.database.all_requests.stock import get_stock_product, get_stock_products, add_stock, change_stock_data, get_out_stock_products
-from app.database.all_requests.transactions import add_transaction, delete_transaction, get_last_transaction
+from app.database.all_requests.stock import get_stock_product, get_stock_products, add_stock, change_stock_data, get_out_stock_products, delete_stock
+from app.database.all_requests.transactions import add_transaction, delete_transaction, get_last_transaction, transaction_writeoff
 
 
 stock_menu = Router()
@@ -304,7 +304,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
             await delete_transaction(transaction_id)
             return None
 
-    except Exception:
+    except Exception as e:
         await state.set_state(Stock.replenishment)
         print(f'{e}\n\nОшибка создания транзакции')
         return None
@@ -319,6 +319,258 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
                                         parse_mode='HTML')
 
 
+# инициируем списание товара
+@stock_menu.callback_query(F.data == 'outlet:writeoff')
+@stock_menu.callback_query(F.data.startswith('outlet:writeoff:page_'))
+async def choose_product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
+    
+    if callback.data.startswith('outlet:writeoff:page_'):
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
+    else:
+        page = 1
+    
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    stock_data = await get_stock_products(outlet_id)
+    
+    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ СПИСАНИЯ</b>',
+                                     reply_markup=kb.choose_product_writeoff(stock_data=stock_data, page=page),
+                                     parse_mode='HTML')
+    
+    
+# запрашиваем количество товара для списания
+@stock_menu.callback_query(F.data.startswith('outlet:writeoff:product_id_'))
+async def product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
+    # сохранение данных товара
+    if callback.data.startswith('outlet:writeoff:product_id_'):
+        product_id = int(callback.data.split('_')[-1])
+        product_data = await get_product(product_id)
+        product_name = product_data.product_name
+        await state.update_data(product_id=product_id)
+    
+    data = await state.get_data()
+    
+    # извлекаем название торговой точки
+    outlet_id = data['outlet_id']
+    outlet_data = await get_outlet(outlet_id)
+    outlet_name = outlet_data.outlet_name
+    
+    # извлекаем некоторые данные выбранного продукта
+    stock_product_data = await get_stock_product(outlet_id, product_id)
+    product_name = stock_product_data.product.product_name
+    product_unit = stock_product_data.product.product_unit
+    stock_qty = stock_product_data.stock_qty
+    stock_id = stock_product_data.stock_id
+    
+    # корректируем единици измерения и зависимости от них
+    product_unit_amend = product_unit
+    if product_unit == 'кг':
+        product_unit_amend = 'граммах'
+    else:
+        product_unit_amend = 'штуках'
+        stock_qty = round(stock_qty)
+        
+    # последняя транзакция с товаром достаем ее данные и создаем текст
+    last_transaction_data = await get_last_transaction(outlet_id=outlet_id,
+                                                       stock_id=stock_id,
+                                                       transaction_type='writeoff')
+    last_transaction_text = ''
+    if last_transaction_data:
+        transaction_datetime = represent_utc_3(last_transaction_data.transaction_datetime).strftime('в %H:%M %d-%m-%Y')
+        transaction_product_qty = last_transaction_data.product_qty
+        # если килограмы, убираем нули после запятой
+        if product_unit != 'кг':
+            transaction_product_qty = round(transaction_product_qty)
+        last_transaction_text = f'Последнее списание товара - <b>➖{transaction_product_qty} {product_unit} ({transaction_datetime})</b>\n'
+    
+    await callback.message.edit_text(text='❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА ДЛЯ СПИСАНИЯ</b>\n\n' \
+                                        f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
+                                        f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
+                                        f'{last_transaction_text}' \
+                                        f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
+                                        'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n',
+                                    reply_markup=kb.writeoff_product,
+                                    parse_mode='HTML')
+    
+    await state.set_state(Stock.writeoff)
 
 
+# принимаем количество товара на списание
+@stock_menu.message(Stock.writeoff)
+async def product_writeoff_receiver_handler(message: Message, state: FSMContext):
+    
+    await state.set_state(None)
+    
+    data = await state.get_data()
+    
+    outlet_id = data['outlet_id']
+    outlet_data = await get_outlet(outlet_id)
+    outlet_name = outlet_data.outlet_name
+    
+    product_id = data['product_id']
+    chat_id = data['chat_id']
+    message_id = data['message_id']
+    
+    stock_product_data = await get_stock_product(outlet_id, product_id)
+    product_name = stock_product_data.product.product_name
+    product_unit = stock_product_data.product.product_unit
+    stock_qty = stock_product_data.stock_qty
+    stock_id = stock_product_data.stock_id
+    product_price = stock_product_data.product.product_price
+    
+    product_unit_amend = product_unit
+    if product_unit == 'кг':
+        product_unit_amend = 'граммах'
+    else:
+        product_unit_amend = 'штуках'
+        stock_qty = round(stock_qty)
+        
+    # последняя транзакция с товаром
+    last_transaction_data = await get_last_transaction(outlet_id=outlet_id,
+                                                       stock_id=stock_id,
+                                                       transaction_type='writeoff')
+    last_transaction_text = ''
+    if last_transaction_data:
+        transaction_datetime = represent_utc_3(last_transaction_data.transaction_datetime).strftime('в %H:%M %d-%m-%Y')
+        transaction_product_qty = last_transaction_data.product_qty
+        
+        if product_unit != 'кг':
+            transaction_product_qty = round(transaction_product_qty)
+            
+        last_transaction_text = f'Последнее списание товара - <b>➖{transaction_product_qty} {product_unit} ({transaction_datetime})</b>\n'
+    
 
+    if message.text.lower().strip() == 'удалить':
+        # создаем транзакцию по списания запасов товара
+        try:
+            transaction_data = {
+                'outlet_id': outlet_id,
+                'stock_id': stock_id,
+                'transaction_type': 'writeoff',
+                'product_name': product_name,
+                'product_qty': stock_qty,
+                'product_price': product_price
+            }
+            
+            transaction_id = await add_transaction(transaction_data)
+            
+            # если транзакция создалась удачно, то удаляем товар из запасов торговой точки
+            try:
+                await delete_stock(stock_id)
+            # если не был удачно удален из запасов, удаляем транзакцию и пишем в логи ошибку
+            except Exception as e:
+                await state.set_state(Stock.writeoff)
+                print(f'{e}\n\nОшибка удаления товара из запасов.')
+                await delete_transaction(transaction_id)
+                return None
+
+        except Exception as e:
+            await state.set_state(Stock.writeoff)
+            print(f'{e}\n\nОшибка создания транзакции')
+            return None
+    # если не удаляем, то списываем
+    else:
+        # Проверяем на формат введенного количества товара
+        try:
+            product_qty = Decimal(message.text.replace(',', '.'))
+            
+            if product_unit == 'кг':
+                product_qty = product_qty / Decimal(1000)
+            
+            if product_qty == 0:
+                try:
+                    await state.set_state(Stock.writeoff)
+                    await message.bot.edit_message_text(chat_id=chat_id,
+                                                        message_id=message_id,
+                                                        text='❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ РАВНО НУЛЮ!</b>\n\n' \
+                                                            '❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА ДЛЯ СПИСАНИЯ</b>\n\n' \
+                                                            f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
+                                                            f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
+                                                            f'{last_transaction_text}' \
+                                                            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
+                                                            'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n',
+                                                        parse_mode='HTML',
+                                                        reply_markup=kb.writeoff_product)
+                    return None
+                except TelegramBadRequest:
+                    return None
+            elif stock_qty - product_qty < 0:
+                try:
+                    await state.set_state(Stock.writeoff)
+                    await message.bot.edit_message_text(chat_id=chat_id,
+                                                        message_id=message_id,
+                                                        text='❗<b>КОЛИЧЕСТВО ДЛЯ СПИСАНИЯ НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ЗАПАСА</b>\n\n' \
+                                                            '❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА ДЛЯ СПИСАНИЯ</b>\n\n' \
+                                                            f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
+                                                            f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
+                                                            f'{last_transaction_text}' \
+                                                            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
+                                                            'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n',
+                                                        parse_mode='HTML',
+                                                        reply_markup=kb.writeoff_product)
+                    return None
+                except TelegramBadRequest:
+                    return None
+        except:
+            try:
+                await state.set_state(Stock.writeoff)
+                await message.bot.edit_message_text(chat_id=chat_id,
+                                                    message_id=message_id,
+                                                    text='❗<b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b>\n\n' \
+                                                        '❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА ДЛЯ СПИСАНИЯ</b>\n\n' \
+                                                        f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
+                                                        f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
+                                                        f'{last_transaction_text}' \
+                                                        f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
+                                                        'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n',
+                                                    parse_mode='HTML',
+                                                    reply_markup=kb.writeoff_product)
+                return None
+            except TelegramBadRequest:
+                return None
+
+        # создаем транзакцию по списания запасов товара
+        try:
+            transaction_data = {
+                'outlet_id': outlet_id,
+                'stock_id': stock_id,
+                'transaction_type': 'writeoff',
+                'product_name': product_name,
+                'product_qty': product_qty,
+                'product_price': product_price
+            }
+            
+            transaction_id = await add_transaction(transaction_data)
+            
+            # если транзакция создалась удачно, то списываем запасы
+            try:
+                stock_data = {
+                    'stock_qty' : stock_qty - product_qty
+                }
+
+                # списываем запасы 
+                await change_stock_data(stock_id, stock_data)
+                
+            # если запасы не списались удачно, удаляем транзакцию и пишем в логи ошибку
+            except Exception as e:
+                await state.set_state(Stock.writeoff)
+                print(f'{e}\n\nОшибка списания запасов товара.')
+                await delete_transaction(transaction_id)
+                return None
+
+        except Exception as e:
+            await state.set_state(Stock.writeoff)
+            print(f'{e}\n\nОшибка создания транзакции')
+            return None
+    
+    # Выводим меню выбора товара на пополнение
+    stock_data = await get_stock_products(outlet_id)
+    
+    await message.bot.edit_message_text(chat_id=chat_id,
+                                        message_id=message_id,
+                                        text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ ПОПОЛНЕНИЯ ЗАПАСОВ</b>',
+                                        reply_markup=kb.choose_product_writeoff(stock_data=stock_data),
+                                        parse_mode='HTML')
