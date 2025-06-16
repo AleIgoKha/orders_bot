@@ -10,7 +10,7 @@ stock_menu = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 
-# выбор продукта для изменения
+# выбор продукта для пополнения
 def choose_product_replenishment(stock_data: list, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
@@ -68,7 +68,7 @@ def choose_product_replenishment(stock_data: list, page: int = 1, products_per_p
 
 
 
-# выбор продукта для изменения
+# выбор продукта для добавления
 def choose_product_add(products: list, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
