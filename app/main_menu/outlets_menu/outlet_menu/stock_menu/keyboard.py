@@ -19,15 +19,15 @@ def choose_product_replenishment(stock_data: list, page: int = 1, products_per_p
     current_items = stock_data[start:end]
     
     for current_item in current_items:
-        product_name = current_item.product.product_name
-        stock_qty = current_item.stock_qty
-        product_unit = current_item.product.product_unit
+        product_name = current_item['product_name']
+        stock_qty = current_item['stock_qty']
+        product_unit = current_item['product_unit']
         
         if product_unit != 'кг':
             stock_qty = round(stock_qty)
         
         text = f"{product_name} - {stock_qty} {product_unit}"
-        callback_data = f"outlet:replenishment:product_id_{current_item.product.product_id}"
+        callback_data = f"outlet:replenishment:product_id_{current_item['product_id']}"
         product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
     
     product_keyboard.adjust(1)
@@ -133,15 +133,15 @@ def choose_product_writeoff(stock_data: list, page: int = 1, products_per_page: 
     current_items = stock_data[start:end]
     
     for current_item in current_items:
-        product_name = current_item.product.product_name
-        stock_qty = current_item.stock_qty
-        product_unit = current_item.product.product_unit
+        product_name = current_item['product_name']
+        stock_qty = current_item['stock_qty']
+        product_unit = current_item['product_unit']
         
         if product_unit != 'кг':
             stock_qty = round(stock_qty)
         
         text = f"{product_name} - {stock_qty} {product_unit}"
-        callback_data = f"outlet:writeoff:product_id_{current_item.product.product_id}"
+        callback_data = f"outlet:writeoff:product_id_{current_item['product_id']}"
         product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
     
     product_keyboard.adjust(1)

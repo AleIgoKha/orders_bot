@@ -20,9 +20,9 @@ def stock_list_text(stock_products_data):
     text = '📦 <b>УПРАВЛЕНИЕ ЗАПАСАМИ</b>\n\n'
     
     for stock_product_data in stock_products_data:
-        product_name = stock_product_data.product.product_name
-        stock_qty = stock_product_data.stock_qty
-        product_unit = stock_product_data.product.product_unit
+        product_name = stock_product_data['product_name']
+        stock_qty = stock_product_data['stock_qty']
+        product_unit = stock_product_data['product_unit']
         
         if product_unit != 'кг':
             stock_qty = round(stock_qty)
@@ -144,10 +144,10 @@ async def product_replenishment_handler(callback: CallbackQuery, state: FSMConte
     outlet_name = outlet_data.outlet_name
     
     stock_product_data = await get_stock_product(outlet_id, product_id)
-    product_unit = stock_product_data.product.product_unit
-    stock_qty = stock_product_data.stock_qty
-    stock_id = stock_product_data.stock_id
-    product_name = stock_product_data.product.product_name
+    product_unit = stock_product_data['product_unit']
+    stock_qty = stock_product_data['stock_qty']
+    stock_id = stock_product_data['stock_id']
+    product_name = stock_product_data['product_name']
     
     product_unit_amend = product_unit
     if product_unit == 'кг':
@@ -198,10 +198,10 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
     message_id = data['message_id']
     
     stock_product_data = await get_stock_product(outlet_id, product_id)
-    product_name = stock_product_data.product.product_name
-    product_unit = stock_product_data.product.product_unit
-    stock_qty = stock_product_data.stock_qty
-    stock_id = stock_product_data.stock_id
+    product_name = stock_product_data['product_name']
+    product_unit = stock_product_data['product_unit']
+    stock_qty = stock_product_data['stock_qty']
+    stock_id = stock_product_data['stock_id']
     
     product_unit_amend = product_unit
     if product_unit == 'кг':
@@ -315,10 +315,10 @@ async def product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     
     # извлекаем некоторые данные выбранного продукта
     stock_product_data = await get_stock_product(outlet_id, product_id)
-    product_name = stock_product_data.product.product_name
-    product_unit = stock_product_data.product.product_unit
-    stock_qty = stock_product_data.stock_qty
-    stock_id = stock_product_data.stock_id
+    product_name = stock_product_data['product_name']
+    product_unit = stock_product_data['product_unit']
+    stock_qty = stock_product_data['stock_qty']
+    stock_id = stock_product_data['stock_id']
     
     # корректируем единици измерения и зависимости от них
     product_unit_amend = product_unit
@@ -370,10 +370,10 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
     message_id = data['message_id']
     
     stock_product_data = await get_stock_product(outlet_id, product_id)
-    product_name = stock_product_data.product.product_name
-    product_unit = stock_product_data.product.product_unit
-    stock_qty = stock_product_data.stock_qty
-    stock_id = stock_product_data.stock_id
+    product_name = stock_product_data['product_name']
+    product_unit = stock_product_data['product_unit']
+    stock_qty = stock_product_data['stock_qty']
+    stock_id = stock_product_data['stock_id']
     
     product_unit_amend = product_unit
     if product_unit == 'кг':
@@ -469,6 +469,14 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
     
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
-                                        text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ ПОПОЛНЕНИЯ ЗАПАСОВ</b>',
+                                        text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ СПИСАНИЯ ЗАПАСОВ</b>',
                                         reply_markup=kb.choose_product_writeoff(stock_data=stock_data),
                                         parse_mode='HTML')
+    
+
+
+
+
+
+
+# сделать так, чтобы проверка на то, что количество товара на списание не может быть больше чем запасы на стороне запроса в базу данных

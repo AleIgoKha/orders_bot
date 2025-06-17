@@ -65,17 +65,30 @@ async def add_stock(session, outlet_id, product_id):
 @with_session()
 async def get_active_stock_products(session, outlet_id):
     
-    stock_data = await session.scalars(
+    result = await session.execute(
         select(Stock, Product) \
         .join(Stock, Product.product_id == Stock.product_id) \
-        .where(Stock.outlet_id == outlet_id) \
-        .options(joinedload(Stock.product)) \
+        .where(Stock.outlet_id == outlet_id,
+               Stock.stock_active == True) \
         .order_by(asc(Product.product_name))
     )
+
+    rows = result.all()
     
-    stock_data = [stock for stock in stock_data.all() if stock.stock_active == True]
-    
-    return stock_data
+    return [
+        {
+            'stock_id': stock.stock_id,
+            'outlet_id': stock.outlet_id,
+            'product_id': stock.product_id,
+            'stock_qty': stock.stock_qty,
+            'stock_active': stock.stock_active,
+            'product_name': product.product_name,
+            'product_unit': product.product_unit,
+            'product_price': product.product_price
+        }
+        
+        for stock, product in rows
+    ]
 
 
 # данные всех продуктов ВНЕ торговой точки по ее id
@@ -99,12 +112,22 @@ async def get_out_stock_products(session, outlet_id):
 # данные одного продукта по его id и id его торговой точки
 @with_session()
 async def get_stock_product(session, outlet_id, product_id):
-    stock_data = await session.scalar(
-        select(Stock, Product) \
-        .join(Stock, Product.product_id == Stock.product_id) \
-        .where(Stock.outlet_id == outlet_id, Product.product_id == product_id) \
-        .options(joinedload(Stock.product)) \
-        .order_by(asc(Product.product_name))
-    )
+    result = await session.execute(
+                                select(Stock, Product) \
+                                .join(Stock, Product.product_id == Stock.product_id) \
+                                .where(Stock.outlet_id == outlet_id,
+                                       Product.product_id == product_id)
+                            )
     
-    return stock_data
+    stock, product = result.first()
+    
+    return {
+            'stock_id': stock.stock_id,
+            'outlet_id': stock.outlet_id,
+            'product_id': stock.product_id,
+            'stock_qty': stock.stock_qty,
+            'stock_active': stock.stock_active,
+            'product_name': product.product_name,
+            'product_unit': product.product_unit,
+            'product_price': product.product_price
+        }

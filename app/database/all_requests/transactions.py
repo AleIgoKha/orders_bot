@@ -190,5 +190,41 @@ async def transaction_delete_product(session, outlet_id, product_id):
                           .values({"stock_active": False,
                                    "stock_qty": 0}))
 
+
+# проводим транзакцию списания товара
+@with_session(commit=True)
+async def transaction_selling(session, outlet_id, product_id, product_qty):
+    stock_data = await session.scalar(
+        select(Stock) \
+        .options(joinedload(Stock.product)) \
+        .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+    )
+    
+    if not stock_data:
+        raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
+    
+    product_name = stock_data.product.product_name
+    stock_id = stock_data.stock_id 
+    product_price = stock_data.product.product_price
+    
+    transaction_data = {
+        'outlet_id': outlet_id,
+        'stock_id': stock_id,
+        'transaction_type': 'selling',
+        'transaction_product_name': product_name,
+        'product_qty': product_qty,
+        'transaction_product_price': product_price
+        }
+    
+    # добавляем транзакцию
+    session.add(Transaction(**transaction_data))
+    
+    # обновляем склаж
+    await session.execute(update(Stock)
+                          .where(Stock.stock_id == stock_id)
+                          .values({'stock_qty' : Stock.stock_qty - product_qty})
+                    )
+
+
 # переделать все на возвращение словаря и одиночных значений вместо возвращения ORM объектов (хотябы новые)
 # переделать мои двойные запросы на атомарные
