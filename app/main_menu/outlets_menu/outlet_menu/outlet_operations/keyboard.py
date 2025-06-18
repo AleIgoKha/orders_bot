@@ -1,14 +1,40 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.database.all_requests.transactions import was_balance_today
+
 
 # Меню операций
 operations_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='💸 Продажа', callback_data='outlet:selling')],
+    [InlineKeyboardButton(text='💸 Расчет по продажам', callback_data='outlet:selling')],
     [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data='outlet:balance')],
     # [InlineKeyboardButton(text='🐓 Возврат средств', callback_data='otlet:return')],
     # [InlineKeyboardButton(text='💰 Указать выручку', callback_data='otlet:revenue')], # эти две операции относятся к 
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:back')]
+])
+
+
+
+def selling(added_pieces):
+    inline_keyboard = []
+    upper_buttons = [InlineKeyboardButton(text='➕ Добавить товар', callback_data='outlet:selling:add_product')]
+    inline_keyboard.append(upper_buttons)
+    lower_buttons = []
+    
+    if len(added_pieces) != 0:
+        upper_buttons.append([InlineKeyboardButton(text='✍🏻 Изменить товар', callback_data='outlet:selling:correct_piece')])
+        lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:selling:calculate'))
+    
+    lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:selling:cancel'))
+    
+    inline_keyboard.append(lower_buttons)
+        
+    return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
+
+selling_cancel = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:selling'),
+    InlineKeyboardButton(text='❌ Подтвердить выход', callback_data='outlet:operations')]
 ])
 
 
@@ -45,7 +71,7 @@ def choose_product_selling(stock_data: list, page: int = 1, products_per_page: i
             InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:selling:page_edge")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:operations'))
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:selling'))
     
     if end < len(stock_data):
         navigation_buttons.append(
@@ -64,7 +90,7 @@ def choose_product_selling(stock_data: list, page: int = 1, products_per_page: i
 
 # для меню покупки товара
 selling_product = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:selling')]
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:selling:add_product')]
 ])
 
 
@@ -80,11 +106,14 @@ def choose_product_balance(stock_data: list, page: int = 1, products_per_page: i
         product_name = current_item['product_name']
         stock_qty = current_item['stock_qty']
         product_unit = current_item['product_unit']
+        stock_id = current_item['stock_id']
         
         if product_unit != 'кг':
             stock_qty = round(stock_qty)
         
         text = f"{product_name} - {stock_qty} {product_unit}"
+        if was_balance_today:
+            text += ' ✅'
         callback_data = f"outlet:balance:product_id_{current_item['product_id']}"
         product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
     
@@ -121,12 +150,15 @@ def choose_product_balance(stock_data: list, page: int = 1, products_per_page: i
 # для меню расчета по остатку
 def balance_product(added_pieces):
     inline_keyboard = []
+    lower_buttons = []
     
     if len(added_pieces) != 0:
-        inline_keyboard.append([InlineKeyboardButton(text='✍🏻 Удалить кусок', callback_data='outlet:balance:correct_piece')])
+        inline_keyboard.append([InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:balance:correct_piece')])
+        lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:balance:calculate'))
     
-    inline_keyboard.append([InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:balance:calculate'),
-                    InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel')])
+    lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel'))
+    
+    inline_keyboard.append(lower_buttons)
         
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 

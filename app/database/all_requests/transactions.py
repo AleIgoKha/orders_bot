@@ -2,7 +2,7 @@ from app.database.models import async_session, Transaction, Stock, Product
 from functools import wraps
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
+from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
 from sqlalchemy.orm import joinedload
 from decimal import Decimal
 from datetime import datetime
@@ -225,6 +225,49 @@ async def transaction_selling(session, outlet_id, product_id, product_qty):
                           .values({'stock_qty' : Stock.stock_qty - product_qty})
                     )
 
+
+# проводим транзакцию продажи по балансу
+@with_session(commit=True)
+async def transaction_balance(session, outlet_id, product_id, product_qty):
+    stock_data = await session.scalar(
+        select(Stock) \
+        .options(joinedload(Stock.product)) \
+        .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+    )
+    
+    if not stock_data:
+        raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
+    
+    product_name = stock_data.product.product_name
+    stock_id = stock_data.stock_id 
+    product_price = stock_data.product.product_price
+    stock_qty = stock_data.stock_qty
+    
+    transaction_data = {
+        'outlet_id': outlet_id,
+        'stock_id': stock_id,
+        'transaction_type': 'balance',
+        'transaction_product_name': product_name,
+        'product_qty': stock_qty - product_qty,
+        'transaction_product_price': product_price
+        }
+    
+    # добавляем транзакцию
+    session.add(Transaction(**transaction_data))
+    
+    # обновляем склаж
+    await session.execute(update(Stock)
+                          .where(Stock.stock_id == stock_id)
+                          .values({'stock_qty' : product_qty})
+                    )
+
+@with_session()
+async def was_balance_today(session, stock_id):
+    result = session.scalar(select(func.count(Transaction) > 0)
+                            .where(Transaction.stock_id == stock_id))
+    
+    return result
+    
 
 # переделать все на возвращение словаря и одиночных значений вместо возвращения ORM объектов (хотябы новые)
 # переделать мои двойные запросы на атомарные
