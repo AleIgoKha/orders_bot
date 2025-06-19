@@ -126,7 +126,7 @@ async def confirm_add_product_handler(callback: CallbackQuery, state: FSMContext
     
     await add_stock(outlet_id, product_id)
     
-    await callback.answer(text='Продукт успешно добавлен в запасы', show_alert=True)
+    await callback.answer(text='Продукт успешно добавлен в запасы')
     
     await choose_add_product_handler(callback, state)
 

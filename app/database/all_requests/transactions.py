@@ -1,11 +1,22 @@
-from app.database.models import async_session, Transaction, Stock, Product
 from functools import wraps
 from contextlib import asynccontextmanager
-
-from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
+from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
 from sqlalchemy.orm import joinedload
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta, time
+import pytz
+
+from app.database.models import async_session, Transaction, Stock, Product
+from app.com_func import represent_utc_3
+
+
+# границы начала и конца дня
+def get_chisinau_day_bounds():
+    tz = pytz.timezone("Europe/Chisinau")
+    now = datetime.now(tz)
+    start_of_day = tz.localize(datetime.combine(now.date(), time.min))
+    end_of_day = start_of_day + timedelta(days=1)
+    return start_of_day, end_of_day
 
 
 # session context manager
@@ -193,37 +204,42 @@ async def transaction_delete_product(session, outlet_id, product_id):
 
 # проводим транзакцию списания товара
 @with_session(commit=True)
-async def transaction_selling(session, outlet_id, product_id, product_qty):
-    stock_data = await session.scalar(
-        select(Stock) \
-        .options(joinedload(Stock.product)) \
-        .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
-    )
+async def transaction_selling(session, outlet_id, added_products):
     
-    if not stock_data:
-        raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
+    for product_id in added_products.keys():
+        product_qty = Decimal(sum(added_products[product_id])) / Decimal(1000)
+        product_id = int(product_id)
     
-    product_name = stock_data.product.product_name
-    stock_id = stock_data.stock_id 
-    product_price = stock_data.product.product_price
-    
-    transaction_data = {
-        'outlet_id': outlet_id,
-        'stock_id': stock_id,
-        'transaction_type': 'selling',
-        'transaction_product_name': product_name,
-        'product_qty': product_qty,
-        'transaction_product_price': product_price
-        }
-    
-    # добавляем транзакцию
-    session.add(Transaction(**transaction_data))
-    
-    # обновляем склаж
-    await session.execute(update(Stock)
-                          .where(Stock.stock_id == stock_id)
-                          .values({'stock_qty' : Stock.stock_qty - product_qty})
-                    )
+        stock_data = await session.scalar(
+            select(Stock) \
+            .options(joinedload(Stock.product)) \
+            .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+        )
+        
+        if not stock_data:
+            raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
+        
+        product_name = stock_data.product.product_name
+        stock_id = stock_data.stock_id 
+        product_price = stock_data.product.product_price
+        
+        transaction_data = {
+            'outlet_id': outlet_id,
+            'stock_id': stock_id,
+            'transaction_type': 'selling',
+            'transaction_product_name': product_name,
+            'product_qty': product_qty,
+            'transaction_product_price': product_price
+            }
+        
+        # добавляем транзакцию
+        session.add(Transaction(**transaction_data))
+        
+        # обновляем склаж
+        await session.execute(update(Stock)
+                            .where(Stock.stock_id == stock_id)
+                            .values({'stock_qty' : Stock.stock_qty - product_qty})
+                        )
 
 
 # проводим транзакцию продажи по балансу
@@ -261,11 +277,21 @@ async def transaction_balance(session, outlet_id, product_id, product_qty):
                           .values({'stock_qty' : product_qty})
                     )
 
+
 @with_session()
 async def was_balance_today(session, stock_id):
-    result = session.scalar(select(func.count(Transaction) > 0)
-                            .where(Transaction.stock_id == stock_id))
-    
+    start, end = get_chisinau_day_bounds()
+
+    stmt = select(
+        func.count(Transaction.transaction_id) > 0
+    ).where(
+        Transaction.stock_id == stock_id,
+        Transaction.transaction_type == 'balance',
+        Transaction.transaction_datetime >= start,
+        Transaction.transaction_datetime < end
+    )
+
+    result = await session.scalar(stmt)
     return result
     
 

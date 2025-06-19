@@ -2,6 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.all_requests.transactions import was_balance_today
+from app.database.all_requests.stock import get_stock_product
 
 
 # Меню операций
@@ -15,16 +16,19 @@ operations_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 
 
-def selling(added_pieces):
+def selling(added_products):
     inline_keyboard = []
-    upper_buttons = [InlineKeyboardButton(text='➕ Добавить товар', callback_data='outlet:selling:add_product')]
+    
+    upper_buttons = []
+    upper_buttons.append(InlineKeyboardButton(text='➕ Добавить товар', callback_data='outlet:selling:add_product'))
+    if len(added_products) != 0:
+        upper_buttons.append(InlineKeyboardButton(text='✍🏻 Изменить товар', callback_data='outlet:selling:correct_piece'))
+    
     inline_keyboard.append(upper_buttons)
+    
     lower_buttons = []
-    
-    if len(added_pieces) != 0:
-        upper_buttons.append([InlineKeyboardButton(text='✍🏻 Изменить товар', callback_data='outlet:selling:correct_piece')])
+    if len(added_products) != 0:
         lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:selling:calculate'))
-    
     lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:selling:cancel'))
     
     inline_keyboard.append(lower_buttons)
@@ -94,8 +98,103 @@ selling_product = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 
+# меню выбора продукта для корректировки веса его кусков
+async def choose_product_correct_product(outlet_id: int, added_products: list, page: int = 1, products_per_page: int = 8):
+    product_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * products_per_page
+    end = start + products_per_page
+    added_products = added_products[start:end]
+
+    for added_product in added_products:
+        stock = await get_stock_product(outlet_id, added_product)
+        product_name = stock['product_name']
+        text = f"{product_name}"
+        callback_data = f"outlet:selling:choose_product:product_id_{added_product}"
+        product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    product_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"outlet:selling:choose_product:page_{page - 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:selling:choose_product:page_edge")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:selling'))
+    
+    if end < len(added_products):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data=f"outlet:selling:choose_product:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="outlet:selling:choose_product:page_edge")
+        )
+        
+    if navigation_buttons:
+        product_keyboard.row(*navigation_buttons)
+
+    return product_keyboard.as_markup()
+
+
+# меню выбора куска для корректировки его веса
+def choose_selling_product_correct_piece(added_pieces: list, page: int = 1, products_per_page: int = 8):
+    product_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * products_per_page
+    end = start + products_per_page
+    pieces = added_pieces[start:end]
+
+    for i in range(len(pieces)):
+        text = f"{pieces[i]}"
+        callback_data = f"outlet:selling:correct_piece:piece_id_{i}"
+        product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    product_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"outlet:selling:correct_piece:page_{page - 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:selling:correct_piece:page_edge")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:selling:correct_piece'))
+    
+    if end < len(added_pieces):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data=f"outlet:selling:correct_piece:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="outlet:selling:correct_piece:page_edge")
+        )
+        
+    if navigation_buttons:
+        product_keyboard.row(*navigation_buttons)
+
+    return product_keyboard.as_markup()
+
+
+# подтверждение сощдания транзакции на продажу продкутов
+selling_confirm = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:selling'),
+        InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:selling:confirm')]
+    ])
+
+
 # меню выбора товара для указания остатка
-def choose_product_balance(stock_data: list, page: int = 1, products_per_page: int = 8):
+async def choose_product_balance(stock_data: list, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
     
     start = (page - 1) * products_per_page
@@ -112,7 +211,9 @@ def choose_product_balance(stock_data: list, page: int = 1, products_per_page: i
             stock_qty = round(stock_qty)
         
         text = f"{product_name} - {stock_qty} {product_unit}"
-        if was_balance_today:
+        
+        check_flag = await was_balance_today(stock_id)
+        if check_flag:
             text += ' ✅'
         callback_data = f"outlet:balance:product_id_{current_item['product_id']}"
         product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
