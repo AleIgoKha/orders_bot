@@ -73,8 +73,8 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
-    naive_dt = datetime(**finished_datetime)
-    aware_dt = represent_utc_3(naive_dt)
+    # naive_dt = datetime(**finished_datetime)
+    aware_dt = represent_utc_3(finished_datetime)
             
     
     # получаем номера заказов
@@ -187,8 +187,8 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
-    naive_dt = datetime(**creation_datetime)
-    aware_dt = represent_utc_3(naive_dt)
+    # naive_dt = datetime(**creation_datetime)
+    aware_dt = represent_utc_3(creation_datetime)
     
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
@@ -196,7 +196,7 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                                       issued=False)
     
     if len(orders) == 0:
-        await callback.answer(text='Нет выданных заказов за этот день')
+        await callback.answer(text='Нет заказов за этот день')
         return None
     
     text = f'📈 <b>СТАТИСТИКА СЕССИИ ПО НЕ ВЫДАННЫМ ЗАКАЗАМ ЗА {creation_datetime.strftime('%d-%m-%Y')}</b> \n\n'

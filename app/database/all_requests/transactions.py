@@ -1,7 +1,7 @@
 from functools import wraps
 from contextlib import asynccontextmanager
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from decimal import Decimal
 from datetime import datetime, timedelta, time
 import pytz
@@ -49,19 +49,6 @@ def with_session(commit: bool = False):
     return decorator
 
 
-# добавляем новую транзакцию 
-@with_session(commit=True)
-async def add_transaction(session, transaction_data):
-    session.add(Transaction(**transaction_data))
-    
-    
-
-
-# удаление транзакции
-@with_session(commit=True)
-async def delete_transaction(session, transaction_id):
-    await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
-
 # последняя транзакция с товаром торговой точки по типу транзакции
 @with_session()
 async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
@@ -88,7 +75,8 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
             'transaction_type': last_transaction.transaction_type,
             'transaction_product_name': last_transaction.transaction_product_name,
             'product_qty': last_transaction.product_qty,
-            'transaction_product_price': last_transaction.transaction_product_price
+            'transaction_product_price': last_transaction.transaction_product_price,
+            'balance_after': last_transaction.balance_after
             }
     else:
         last_transaction_data = None
@@ -99,71 +87,77 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
 # проводим транзакцию пополнения товара
 @with_session(commit=True)
 async def transaction_replenish(session, outlet_id, product_id, product_qty):
+    if product_qty <= 0:
+        raise ValueError("Replenishment quantity must be positive.")
+    
     stock_data = await session.scalar(
-        select(Stock) \
-        .options(joinedload(Stock.product)) \
+        select(Stock, Product)
+        .options(selectinload(Stock.product))
         .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+        .with_for_update()
     )
     
     if not stock_data:
         raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
     
-    product_name = stock_data.product.product_name
-    stock_id = stock_data.stock_id 
-    product_price = stock_data.product.product_price
+    current_qty = stock_data.stock_qty
+    new_qty = current_qty + Decimal(product_qty)
     
-    transaction_data = {
-        'outlet_id': outlet_id,
-        'stock_id': stock_id,
-        'transaction_type': 'replenishment',
-        'transaction_product_name': product_name,
-        'product_qty': product_qty,
-        'transaction_product_price': product_price
-        }
+    # Update stock quantity
+    stock_data.stock_qty = new_qty
+    
+    
+    transaction_data = Transaction(
+        outlet_id=outlet_id,
+        stock_id=stock_data.stock_id,
+        transaction_type='replenishment',
+        transaction_product_name=stock_data.product.product_name,
+        product_qty=product_qty,
+        transaction_product_price=stock_data.product.product_price,
+        balance_after=new_qty
+    )
     
     # добавляем транзакцию
-    session.add(Transaction(**transaction_data))
-    
-    # обновляем склад
-    await session.execute(update(Stock)
-                          .where(Stock.stock_id == stock_id)
-                          .values({'stock_qty' : Stock.stock_qty + product_qty})
-                    )
+    session.add(transaction_data)
 
 
 # проводим транзакцию списания товара
 @with_session(commit=True)
 async def transaction_writeoff(session, outlet_id, product_id, product_qty):
+    if product_qty <= 0:
+        raise ValueError("Replenishment quantity must be positive.")
+    
     stock_data = await session.scalar(
         select(Stock) \
-        .options(joinedload(Stock.product)) \
+        .options(selectinload(Stock.product))
         .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+        .with_for_update()
     )
     
     if not stock_data:
         raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
     
-    product_name = stock_data.product.product_name
-    stock_id = stock_data.stock_id 
-    product_price = stock_data.product.product_price
+    current_qty = stock_data.stock_qty
+    new_qty = current_qty - Decimal(product_qty)
     
-    transaction_data = {
-        'outlet_id': outlet_id,
-        'stock_id': stock_id,
-        'transaction_type': 'writeoff',
-        'transaction_product_name': product_name,
-        'product_qty': product_qty,
-        'transaction_product_price': product_price
-        }
+    if new_qty < 0:
+        raise ValueError("Stock quantity must be positive or at least zero.")
+    
+    # Update stock quantity
+    stock_data.stock_qty = new_qty
+
+    transaction_data = Transaction(
+        outlet_id=outlet_id,
+        stock_id=stock_data.stock_id,
+        transaction_type='writeoff',
+        transaction_product_name=stock_data.product.product_name,
+        product_qty=Decimal(product_qty),
+        transaction_product_price=stock_data.product.product_price,
+        balance_after=new_qty
+    )
     
     # добавляем транзакцию
-    session.add(Transaction(**transaction_data))
-    
-    # обновляем склаж
-    await session.execute(update(Stock)
-                          .where(Stock.stock_id == stock_id)
-                          .values({'stock_qty' : Stock.stock_qty - product_qty})
-                    )
+    session.add(transaction_data)
     
     
 # проводим транзакцию списания товара и удаляем товар из торговой точки
@@ -171,35 +165,29 @@ async def transaction_writeoff(session, outlet_id, product_id, product_qty):
 async def transaction_delete_product(session, outlet_id, product_id):
     stock_data = await session.scalar(
         select(Stock) \
-        .options(joinedload(Stock.product)) \
+        .options(selectinload(Stock.product))
         .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+        .with_for_update()
     )
     
     if not stock_data:
         raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
     
-    product_name = stock_data.product.product_name
-    stock_id = stock_data.stock_id 
-    product_price = stock_data.product.product_price
-    stock_qty = stock_data.stock_qty
+    stock_data.stock_qty = 0
+    stock_data.stock_active = False
     
-    transaction_data = {
-        'outlet_id': outlet_id,
-        'stock_id': stock_id,
-        'transaction_type': 'writeoff',
-        'transaction_product_name': product_name,
-        'product_qty': stock_qty,
-        'transaction_product_price': product_price
-        }
+    transaction_data = Transaction(
+        outlet_id=outlet_id,
+        stock_id=stock_data.stock_id,
+        transaction_type='writeoff',
+        transaction_product_name=stock_data.product.product_name,
+        product_qty=stock_data.stock_qty,
+        transaction_product_price=stock_data.product.product_price,
+        balance_after=0
+    )
     
     # добавляем транзакцию
-    session.add(Transaction(**transaction_data))
-    
-    # удаляем товар из запасов торговой точки
-    await session.execute(update(Stock)
-                          .where(Stock.stock_id == stock_id)
-                          .values({"stock_active": False,
-                                   "stock_qty": 0}))
+    session.add(transaction_data)
 
 
 # проводим транзакцию списания товара
@@ -207,75 +195,87 @@ async def transaction_delete_product(session, outlet_id, product_id):
 async def transaction_selling(session, outlet_id, added_products):
     
     for product_id in added_products.keys():
-        product_qty = Decimal(sum(added_products[product_id])) / Decimal(1000)
+        product_qty = sum(added_products[product_id])
         product_id = int(product_id)
-    
+        
+        if product_qty <= 0:
+            raise ValueError("Replenishment quantity must be positive.")
+        
         stock_data = await session.scalar(
             select(Stock) \
-            .options(joinedload(Stock.product)) \
+            .options(selectinload(Stock.product))
             .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
-        )
+            .with_for_update()
+    )
         
         if not stock_data:
             raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
         
-        product_name = stock_data.product.product_name
-        stock_id = stock_data.stock_id 
-        product_price = stock_data.product.product_price
+        product_unit = stock_data.product.product_unit
         
-        transaction_data = {
-            'outlet_id': outlet_id,
-            'stock_id': stock_id,
-            'transaction_type': 'selling',
-            'transaction_product_name': product_name,
-            'product_qty': product_qty,
-            'transaction_product_price': product_price
-            }
+        if product_unit == 'кг':
+            product_qty = Decimal(product_qty) / Decimal(1000)
+        
+        current_qty = stock_data.stock_qty
+        new_qty = current_qty - Decimal(product_qty)
+        
+        if new_qty < 0:
+            raise ValueError("Stock quantity must be positive or at least zero.")
+        
+        # Update stock quantity
+        stock_data.stock_qty = new_qty
+        
+        transaction_data = Transaction(
+            outlet_id=outlet_id,
+            stock_id=stock_data.stock_id,
+            transaction_type='selling',
+            transaction_product_name=stock_data.product.product_name,
+            product_qty=Decimal(product_qty),
+            transaction_product_price=stock_data.product.product_price,
+            balance_after=new_qty
+        )
         
         # добавляем транзакцию
-        session.add(Transaction(**transaction_data))
-        
-        # обновляем склаж
-        await session.execute(update(Stock)
-                            .where(Stock.stock_id == stock_id)
-                            .values({'stock_qty' : Stock.stock_qty - product_qty})
-                        )
+        session.add(transaction_data)
 
 
 # проводим транзакцию продажи по балансу
 @with_session(commit=True)
 async def transaction_balance(session, outlet_id, product_id, product_qty):
+    if product_qty <= 0:
+        raise ValueError("Replenishment quantity must be positive.")
+    
     stock_data = await session.scalar(
         select(Stock) \
-        .options(joinedload(Stock.product)) \
+        .options(selectinload(Stock.product))
         .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
+        .with_for_update()
     )
     
     if not stock_data:
         raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
     
-    product_name = stock_data.product.product_name
-    stock_id = stock_data.stock_id 
-    product_price = stock_data.product.product_price
-    stock_qty = stock_data.stock_qty
+    current_qty = stock_data.stock_qty
+    qty_diff = current_qty - Decimal(product_qty)
     
-    transaction_data = {
-        'outlet_id': outlet_id,
-        'stock_id': stock_id,
-        'transaction_type': 'balance',
-        'transaction_product_name': product_name,
-        'product_qty': stock_qty - product_qty,
-        'transaction_product_price': product_price
-        }
+    if Decimal(product_qty) < 0:
+        raise ValueError("Stock quantity must be positive or at least zero.")
+    
+    # Update stock quantity
+    stock_data.stock_qty = Decimal(product_qty)
+    
+    transaction_data = Transaction(
+        outlet_id=outlet_id,
+        stock_id=stock_data.stock_id,
+        transaction_type='balance',
+        transaction_product_name=stock_data.product.product_name,
+        product_qty=qty_diff,
+        transaction_product_price=stock_data.product.product_price,
+        balance_after=Decimal(product_qty)
+    )
     
     # добавляем транзакцию
-    session.add(Transaction(**transaction_data))
-    
-    # обновляем склаж
-    await session.execute(update(Stock)
-                          .where(Stock.stock_id == stock_id)
-                          .values({'stock_qty' : product_qty})
-                    )
+    session.add(transaction_data)
 
 
 @with_session()

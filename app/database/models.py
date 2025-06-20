@@ -117,6 +117,7 @@ class Transaction(Base):
     transaction_product_name: Mapped[str] = mapped_column(String)
     product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))
     transaction_product_price: Mapped[Decimal] = mapped_column(Numeric(9, 2))
+    balance_after: Mapped[Decimal] = mapped_column(Numeric(9, 3), nullable=True)
     
     outlet: Mapped["Outlet"] = relationship(back_populates="transactions")
 
