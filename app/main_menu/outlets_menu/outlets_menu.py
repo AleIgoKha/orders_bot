@@ -133,7 +133,7 @@ async def change_new_outlet_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(Outlet.name)
 
 
-# Сохраняем новую сессию
+# Сохраняем новую торговую точку
 @outlets_menu.callback_query(F.data == 'outlets:confirm_new_outlet')
 async def confirm_new_outlet_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()

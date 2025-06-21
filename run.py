@@ -20,6 +20,10 @@ from app.main_menu.sessions.session.completed_orders.completed_orders import com
 from app.main_menu.sessions.session.session_stats.session_stats import session_stats
 from app.main_menu.sessions.session.issued_orders.issued_orders import issued_orders
 from app.main_menu.outlets_menu.outlets_menu import outlets_menu
+from app.main_menu.outlets_menu.outlet_menu.outlet_menu import outlet_menu
+from app.main_menu.outlets_menu.outlet_menu.outlet_operations.outlet_operations import outlet_operations
+from app.main_menu.outlets_menu.outlet_menu.stock_menu.stock_menu import stock_menu
+from app.main_menu.outlets_menu.outlet_menu.outlet_statistics.outlet_statistics import outlet_statistics
 
 from app.database.models import async_main
 from app.middlewares import MessagesRemover, OutOfPagesAnswer
@@ -43,6 +47,10 @@ async def main():
                        order_downloading,
                        issued_orders,
                        outlets_menu,
+                       outlet_menu,
+                       outlet_operations,
+                       stock_menu,
+                       outlet_statistics,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

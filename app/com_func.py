@@ -2,7 +2,7 @@ import pytz
 
 # Фурнкция для правильного отображения времени с часовым поясом
 def represent_utc_3(date_time):
-    if date_time !=None:
+    if date_time != None:
         tz = pytz.timezone("Europe/Chisinau")
         if date_time.tzinfo is None:
             return tz.localize(date_time)

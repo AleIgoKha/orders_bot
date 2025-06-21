@@ -1,6 +1,7 @@
-from app.database.models import async_session, Product, Session, Order, Item, Outlet
+from app.database.models import async_session, Product, Session, Order, Item, Outlet, Stock
 
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
+from sqlalchemy.orm import joinedload
 from decimal import Decimal
 from datetime import datetime
 
@@ -90,6 +91,12 @@ async def get_session(session, session_id):
 
 
 @connection
+async def get_outlet(session, outlet_id):
+    outlet_data = await session.scalar(select(Outlet).where(Outlet.outlet_id == outlet_id))
+    return outlet_data
+
+
+@connection
 async def get_session_by_name(session, session_name):
     order_session = await session.scalar(select(Session).where(Session.session_name == session_name))
     return order_session
@@ -155,6 +162,7 @@ async def get_orders(session, session_id):
     return order_data.all()
 
 
+
 # выводим выданные заказы по дате выдачи или без нее
 @connection
 async def get_orders_by_date(session, session_id, issued, datetime: datetime=None):
@@ -213,6 +221,13 @@ async def get_not_issued_orders_sorted(session, session_id):
 @connection
 async def change_session_data(session, session_id, session_data):
     await session.execute(update(Session).where(Session.session_id == session_id).values(session_data))
+    await session.commit()
+
+
+# изменение данных торговой точки
+@connection
+async def change_outlet_data(session, outlet_id, outlet_data):
+    await session.execute(update(Outlet).where(Outlet.outlet_id == outlet_id).values(outlet_data))
     await session.commit()
 
 
@@ -280,8 +295,15 @@ async def delete_product(session, product_id):
 async def delete_session(session, session_id):
     await session.execute(delete(Session).where(Session.session_id == session_id))
     await session.commit()
+ 
     
-    
+# удаление торговой точки
+@connection
+async def delete_outlet(session, outlet_id):
+    await session.execute(delete(Outlet).where(Outlet.outlet_id == outlet_id))
+    await session.commit()
+
+
 # Подсчет статистики по товарам
 @connection
 async def get_session_items_stats(session, session_id):

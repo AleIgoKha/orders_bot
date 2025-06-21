@@ -25,6 +25,8 @@ class Product(Base):
     product_unit: Mapped[str] = mapped_column(String(5))
     product_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     
+    stocks: Mapped[list["Stock"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+    
 # База данных с сессиями заказов
 class Session(Base):
     __tablename__ = 'sessions'
@@ -87,7 +89,37 @@ class Outlet(Base):
     outlet_descr: Mapped[str] = mapped_column(String, nullable=True)
     outlet_arch: Mapped[bool] = mapped_column(Boolean, default=False)
     
+    stocks: Mapped[list["Stock"]] = relationship(back_populates="outlet", cascade="all, delete-orphan")
+    transactions: Mapped[list["Transaction"]] = relationship(back_populates="outlet", cascade="all, delete-orphan")
     
+class Stock(Base):
+    __tablename__ = 'stocks'
+    
+    stock_id: Mapped[int] = mapped_column(primary_key=True)
+    outlet_id: Mapped[int] = mapped_column(ForeignKey('outlets.outlet_id', ondelete='CASCADE'))
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.product_id', ondelete='CASCADE'))
+    stock_qty: Mapped[Decimal] = mapped_column(Numeric(11, 3), default=Decimal("0.000"))
+    stock_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Можно в будущем будет добавить касмотную цену и название товара для конкретной сессии для гибкости
+    
+    outlet: Mapped["Outlet"] = relationship(back_populates="stocks")
+    product: Mapped["Product"] = relationship(back_populates="stocks")
+    
+    
+class Transaction(Base):
+    __tablename__ = 'transactions'
+    
+    transaction_id: Mapped[int] = mapped_column(primary_key=True)
+    outlet_id: Mapped[int] = mapped_column(ForeignKey('outlets.outlet_id', ondelete='CASCADE'))
+    stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.stock_id'))
+    transaction_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('Europe/Chisinau', func.now()), nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String)
+    transaction_product_name: Mapped[str] = mapped_column(String)
+    product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))
+    transaction_product_price: Mapped[Decimal] = mapped_column(Numeric(9, 2))
+    balance_after: Mapped[Decimal] = mapped_column(Numeric(9, 3), nullable=True)
+    
+    outlet: Mapped["Outlet"] = relationship(back_populates="transactions")
 
 async def async_main():
     async with engine.begin() as conn:
