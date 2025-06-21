@@ -209,11 +209,12 @@ async def confirm_add_product_handler(callback: CallbackQuery, state: FSMContext
     outlet_id = data['outlet_id']
     product_id = data['product_id']
     
-    await add_stock(outlet_id, product_id)
-    
-    await callback.answer(text='Продукт успешно добавлен в запасы')
-    
-    await choose_add_product_handler(callback, state)
+    try:
+        await add_stock(outlet_id, product_id)
+        await callback.answer(text='Продукт успешно добавлен в запасы')
+        await choose_add_product_handler(callback, state)
+    except:
+        await callback.answer(text='Невозможно создать транзакцию')
 
 
 # Пополнение запасов продукта
@@ -314,11 +315,13 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_replenish(outlet_id, product_id, product_qty)
+        await callback.answer(text='Запасы продукта успешно пополнены')
+        await choose_product_replenishment_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
     
     # переходив в меню пополнения
-    await choose_product_replenishment_handler(callback, state)
+
 
 
 # инициируем списание товара
@@ -475,11 +478,12 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_writeoff(outlet_id, product_id, product_qty)
+        await callback.answer(text='Запасы продукта успешно списаны')
+        await choose_product_writeoff_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
     
-    # переходив в меню пополнения
-    await choose_product_writeoff_handler(callback, state)
+
 
 
 # подтверждение удаления товара из запасов
@@ -492,8 +496,7 @@ async def confirm_stock_delete_handler(callback: CallbackQuery, state: FSMContex
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_delete_product(outlet_id, product_id)
+        await callback.answer(text='Продукт успешно удален из запасов торговой точки')
+        await choose_product_writeoff_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
-    
-    # переходив в меню пополнения
-    await choose_product_writeoff_handler(callback, state)

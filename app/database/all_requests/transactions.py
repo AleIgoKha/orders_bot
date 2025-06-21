@@ -227,7 +227,7 @@ async def transaction_selling(session, outlet_id, added_products):
         new_qty = current_qty - Decimal(product_qty)
         
         if new_qty < 0:
-            raise ValueError("Stock quantity must be positive or at least zero.")
+            raise ValueError("Stock quantity cannot be lower than product quantity.")
         
         # Update stock quantity
         stock_data.stock_qty = new_qty

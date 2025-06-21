@@ -226,10 +226,15 @@ async def product_selling_receiver_handler(message: Message, state: FSMContext):
     try:
         product_qty = Decimal(message.text.replace(',', '.'))
         
-        if product_qty == 0:
+        # количество продукта с учетом последнего добавленного куска
+        total_qty = product_qty
+        if str(product_id) in added_products.keys():
+            total_qty += Decimal(sum(added_products[str(product_id)]))
+        
+        if product_qty <= 0:
             try:
                 await state.set_state(Stock.selling)
-                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ РАВНО НУЛЮ!</b>\n\n'
+                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ИЛИ РАВНО НУЛЮ</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
@@ -239,10 +244,10 @@ async def product_selling_receiver_handler(message: Message, state: FSMContext):
                 return None
             except TelegramBadRequest:
                 return None
-        elif stock_qty - product_qty < 0:
+        elif stock_qty - total_qty < 0:
             try:
                 await state.set_state(Stock.selling)
-                warning_text = '❗<b>КОЛИЧЕСТВО ДЛЯ СПИСАНИЯ НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ЗАПАСА</b>\n\n'
+                warning_text = '❗<b>КОЛИЧЕСТВО ТОВАРА НА ПРОДАЖУ НЕ МОЖЕТ БЫТЬ БОЛЬШЕ ЗАПАСА</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
@@ -372,6 +377,9 @@ async def calculate_selling_handler(callback: CallbackQuery, state: FSMContext):
         product_name = product_data['product_name']
         product_unit = product_data['product_unit']
         product_qty = sum(added_products[product_id])
+        if product_unit == 'кг':
+            product_unit = product_unit[-1]
+        
         text += f'{product_name} - <b>{product_qty} {product_unit}</b>\n'
     text += '\nЕсли все правильно нажмите <b>Подтвердить</b>.'
     
@@ -387,12 +395,14 @@ async def confirm_selling_handler(callback: CallbackQuery, state: FSMContext):
     added_products = data['added_products']
     outlet_id =  data['outlet_id']
     
-    await transaction_selling(outlet_id, added_products)
-    
-    await callback.answer(text='Транзакции успешно созданы', show_alert=True)
-    await operations_menu_handler(callback, state)
-    
-    print(await state.get_data())
+    try:
+        await transaction_selling(outlet_id, added_products)
+        await callback.answer(text='Транзакции успешно созданы', show_alert=True)
+        await operations_menu_handler(callback, state)
+    except:
+        await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
+
+
 
 
 # выбираем товар для фиксации остатка
@@ -479,6 +489,9 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
     try:
         product_qty = Decimal(message.text.replace(',', '.'))
         
+        # количество продукта с учетом последнего добавленного куска
+        total_qty = product_qty + Decimal(sum(added_pieces))
+        
         if product_qty <= 0:
             try:
                 await state.set_state(Stock.balance)
@@ -492,10 +505,10 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
                 return None
             except TelegramBadRequest:
                 return None
-        elif stock_qty - product_qty < 0:
+        elif stock_qty - total_qty < 0:
             try:
                 await state.set_state(Stock.balance)
-                warning_text = '❗<b>КУСОК НЕ МОЖЕТ ИМЕТЬ МАССУ БОЛЬШЕ ЗАПАСА</b>\n\n'
+                warning_text = '❗<b>ОСТАТОК НЕ МОЖЕТ БЫТЬ БОЛЬШЕ ЗАПАСА</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
@@ -640,8 +653,13 @@ async def confirm_balance_product_handler(callback: CallbackQuery, state: FSMCon
     if product_unit == 'кг':
         product_qty = product_qty / (Decimal(1000))
     
-    await transaction_balance(outlet_id, product_id, product_qty)
-    await callback.answer(text='Транзакция успешно создана', show_alert=True)
-    await choose_product_balance_handler(callback, state)
+    try:
+        await transaction_balance(outlet_id, product_id, product_qty)
+        await callback.answer(text='Транзакция успешно создана', show_alert=True)
+        await choose_product_balance_handler(callback, state)
+    except:
+        await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
+    
+
     
     
