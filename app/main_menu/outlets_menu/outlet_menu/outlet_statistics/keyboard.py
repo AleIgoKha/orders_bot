@@ -1,10 +1,12 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from datetime import date
+from datetime import date, datetime
 from calendar import monthrange
+
+from app.database.all_requests.transactions import were_sellings
 
 
 # Календарь для выбора даты
-def calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardMarkup:
     """
     Creates an inline keyboard representing a calendar for the given year and month.
     """
@@ -40,8 +42,12 @@ def calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
                 day_text = str(day_counter)
+                sellings_check_flag = await were_sellings(outlet_id, datetime(year, month, day_counter))                 
                 if day_counter == date.today().day and month == date.today().month and year == date.today().year:
                     day_text = '🌞'
+                # если за день были продающие транзакции, то ставим галочку возле даты
+                if sellings_check_flag:
+                    day_text += ' ✔️'
                 callback_data = f"outlet:statistics:date:{year}:{month}:{day_counter}"
                 row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
                 day_counter += 1
@@ -49,11 +55,11 @@ def calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
         if day_counter > days_in_month:
             break
     
-    additional_buttons = [
-        InlineKeyboardButton(text='📊 За все время', callback_data=f'outlet:statistics:total_stats')
-    ]
+    # additional_buttons = [
+    #     InlineKeyboardButton(text='📊 За все время', callback_data=f'outlet:statistics:total_stats')
+    # ]
 
-    keyboard.append(additional_buttons)
+    # keyboard.append(additional_buttons)
 
     navigation_buttons = [
         InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"outlet:statistics:month:prev:{year}:{month}"),
@@ -67,5 +73,5 @@ def calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
 
 # кнопка назад для выхода из статистики
 back_button = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Назад', callback_data='outlet:back')]
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics')]
 ])

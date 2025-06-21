@@ -1,12 +1,9 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
 
 import app.main_menu.outlets_menu.outlet_menu.outlet_statistics.keyboard as kb
-from app.main_menu.main_menu import main_menu_handler 
-from app.states import Outlet
 from app.database.all_requests.outlet_statistics import selling_statistics
 from app.com_func import represent_utc_3
 
@@ -17,7 +14,10 @@ outlet_statistics = Router()
 @outlet_statistics.callback_query(F.data == 'outlet:statistics')
 @outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:prev:'))
 @outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:next:'))
-async def outlet_statistics_handler(callback: CallbackQuery):
+async def outlet_statistics_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    
     now = represent_utc_3(datetime.now())
     year = now.year
     month = now.month
@@ -36,10 +36,10 @@ async def outlet_statistics_handler(callback: CallbackQuery):
             if month > 12:
                 month = 1
                 year += 1
-        await callback.message.edit_reply_markup(reply_markup=kb.calendar_keyboard(year, month))
+        await callback.message.edit_reply_markup(reply_markup=await kb.calendar_keyboard(outlet_id, year, month))
     else:
         await callback.message.edit_text(text=f'❓ <b>УКАЖИТЕ ДАТУ СТАТИСТИКИ</b>\n\n',
-                                        reply_markup=kb.calendar_keyboard(year, month),
+                                        reply_markup=await kb.calendar_keyboard(outlet_id, year, month),
                                         parse_mode='HTML')
         
 
@@ -59,16 +59,34 @@ async def outlet_statistics_date_handler(callback: CallbackQuery, state: FSMCont
     
     selling_statistics_data = await selling_statistics(outlet_id, aware_dt)
     
-    text = 'Статистика за день\n\n'
+    # если заказов не было то выводим предупреждение
+    if len(selling_statistics_data) == 0:
+        await callback.answer(text='Нет статистики за выбранный день')
+        return None
+    
+    text = f'📊 <b>СТАТИСТИКА ЗА {finished_datetime.strftime('%d-%m-%Y')}</b>\n\n'
+    
+    total_revenue = 0
     
     for product_statistics in selling_statistics_data:
         product_name = product_statistics['product_name']
-        product_sum_qty = product_statistics['product_sum_qty']
+        product_sum_qty = round(product_statistics['product_sum_qty'], 3)
         product_unit = product_statistics['product_unit']
-        product_revenue = product_statistics['product_revenue']
+        product_revenue = round(product_statistics['product_revenue'], 2)
         product_balance = product_statistics['product_balance']
         
-        text += f'{product_name}:\nПродано{product_sum_qty} {product_unit}\nОжидаемая выручка{product_revenue} руб\nОстаток {product_balance} {product_unit}\n\n'
+        if product_unit != 'кг':
+            product_sum_qty = round(product_sum_qty)
+            product_balance = round(product_balance)
+        
+        text += f'🧀 <b>{product_name}:</b>\n' \
+                f'Продано - <b>{product_sum_qty} {product_unit}</b>\n' \
+                f'Ожидаемая выручка - <b>{product_revenue} руб</b>\n'\
+                f'Остаток <b>{product_balance} {product_unit}</b>\n\n'
+                
+        total_revenue += product_revenue
+        
+    text += f'<b>Общая ожидаемая выручка - {round(total_revenue, 2)} руб</b>'
         
     await callback.message.edit_text(text=text,
                                      reply_markup=kb.back_button,

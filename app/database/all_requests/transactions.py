@@ -11,11 +11,18 @@ from app.com_func import represent_utc_3
 
 
 # границы начала и конца дня
-def get_chisinau_day_bounds():
+def get_chisinau_day_bounds(date_time: datetime):
     tz = pytz.timezone("Europe/Chisinau")
-    now = datetime.now(tz)
-    start_of_day = tz.localize(datetime.combine(now.date(), time.min))
+    
+    # Ensure datetime is timezone-aware in Chisinau
+    if date_time.tzinfo is None:
+        date_time = tz.localize(date_time)
+    else:
+        date_time = date_time.astimezone(tz)
+    
+    start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
     end_of_day = start_of_day + timedelta(days=1)
+    
     return start_of_day, end_of_day
 
 
@@ -162,7 +169,7 @@ async def transaction_writeoff(session, outlet_id, product_id, product_qty):
     
 # проводим транзакцию списания товара и удаляем товар из торговой точки
 @with_session(commit=True)
-async def transaction_delete_product(session, outlet_id, product_id):
+async def transaction_delete_product(session, outlet_id, product_id):   
     stock_data = await session.scalar(
         select(Stock) \
         .options(selectinload(Stock.product))
@@ -173,7 +180,7 @@ async def transaction_delete_product(session, outlet_id, product_id):
     if not stock_data:
         raise ValueError(f"Stock for product ID {product_id} at outlet ID {outlet_id} not found.")
     
-    stock_data.stock_qty = 0
+    stock_data.stock_qty = Decimal(0)
     stock_data.stock_active = False
     
     transaction_data = Transaction(
@@ -183,7 +190,7 @@ async def transaction_delete_product(session, outlet_id, product_id):
         transaction_product_name=stock_data.product.product_name,
         product_qty=stock_data.stock_qty,
         transaction_product_price=stock_data.product.product_price,
-        balance_after=0
+        balance_after=Decimal(0)
     )
     
     # добавляем транзакцию
@@ -280,13 +287,31 @@ async def transaction_balance(session, outlet_id, product_id, product_qty):
 
 @with_session()
 async def was_balance_today(session, stock_id):
-    start, end = get_chisinau_day_bounds()
+    start, end = get_chisinau_day_bounds(datetime.now())
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0
     ).where(
         Transaction.stock_id == stock_id,
         Transaction.transaction_type == 'balance',
+        Transaction.transaction_datetime >= start,
+        Transaction.transaction_datetime < end
+    )
+
+    result = await session.scalar(stmt)
+    return result
+
+
+# проверяет были ли продающие транзакции за день
+@with_session()
+async def were_sellings(session, outlet_id, date_time):
+    start, end = get_chisinau_day_bounds(date_time)
+
+    stmt = select(
+        func.count(Transaction.transaction_id) > 0
+    ).where(
+        Transaction.outlet_id == outlet_id,
+        Transaction.transaction_type.in_(['balance', 'selling']),
         Transaction.transaction_datetime >= start,
         Transaction.transaction_datetime < end
     )

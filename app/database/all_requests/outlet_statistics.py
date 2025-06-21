@@ -63,18 +63,8 @@ async def selling_statistics(session, outlet_id, date_time):
 
     # Subquery to fetch the latest transaction per product within the time window
     latest_tx = (
-        select(
-            Transaction.transaction_product_name.label('product_name'),
-            Transaction.balance_after.label('product_balance'),
-            func.max(Transaction.transaction_datetime).label('latest_ts')
-        )
-        .where(
-            Transaction.outlet_id == outlet_id,
-            Transaction.transaction_type.in_(["balance", "selling"]),
-            Transaction.transaction_datetime >= start,
-            Transaction.transaction_datetime < end
-        )
-        .group_by(Transaction.transaction_product_name, Transaction.balance_after)
+        select(Stock)
+        .where(Stock.outlet_id == outlet_id)
         .subquery()
     )
 
@@ -86,10 +76,10 @@ async def selling_statistics(session, outlet_id, date_time):
             func.sum(Transaction.product_qty).label('product_sum_qty'),
             ProductAlias.product_unit,
             func.sum(Transaction.transaction_product_price * Transaction.product_qty).label('product_revenue'),
-            latest_tx.c.product_balance
+            latest_tx.c.stock_qty.label('product_balance')
         )
         .join(ProductAlias, ProductAlias.product_name == Transaction.transaction_product_name)
-        .join(latest_tx, latest_tx.c.product_name == Transaction.transaction_product_name)
+        .join(latest_tx, latest_tx.c.stock_id == Transaction.stock_id)
         .where(
             Transaction.outlet_id == outlet_id,
             Transaction.transaction_type.in_(["balance", "selling"]),
@@ -99,7 +89,7 @@ async def selling_statistics(session, outlet_id, date_time):
         .group_by(
             Transaction.transaction_product_name,
             ProductAlias.product_unit,
-            latest_tx.c.product_balance
+            latest_tx.c.stock_qty
         )
     )
 

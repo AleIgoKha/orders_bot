@@ -124,6 +124,13 @@ replenish_product = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 
+# Подтверждение пополнения запасов
+confirm_replenish = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:replenishment:confirm')],
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment')]
+])
+
+
 # выбор продукта для изменения
 def choose_product_writeoff(stock_data: list, page: int = 1, products_per_page: int = 8):
     product_keyboard = InlineKeyboardBuilder()
@@ -176,6 +183,20 @@ def choose_product_writeoff(stock_data: list, page: int = 1, products_per_page: 
 
 # кнопка для отмены списания и списания всего
 writeoff_product = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:writeoff')]
+])
+
+
+# Подтверждение списания запасов
+confirm_writeoff = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:writeoff:confirm')],
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:writeoff')]
+])
+
+
+# Подтверждение удаления товара из запасов
+confirm_delete = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:stock:delete:confirm')],
     [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:writeoff')]
 ])
 

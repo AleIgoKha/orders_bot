@@ -5,11 +5,10 @@ from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
 
 import app.main_menu.outlets_menu.outlet_menu.outlet_operations.keyboard as kb
-from app.com_func import represent_utc_3
 from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.transactions import get_last_transaction, transaction_selling, transaction_balance
-from app.database.requests import get_outlet
+from app.database.all_requests.transactions import transaction_selling, transaction_balance
+from app.database.all_requests.outlet import get_outlet
 
 outlet_operations = Router()
 
@@ -18,7 +17,7 @@ outlet_operations = Router()
 async def selling_text(outlet_id, product_id):
     # извлекаем название торговой точки
     outlet_data = await get_outlet(outlet_id)
-    outlet_name = outlet_data.outlet_name
+    outlet_name = outlet_data['outlet_name']
     
     # извлекаем некоторые данные выбранного продукта
     stock_product_data = await get_stock_product(outlet_id, product_id)
@@ -39,7 +38,7 @@ async def selling_text(outlet_id, product_id):
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
             f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>.'
     
-    return text, float(stock_qty), product_unit
+    return text, str(stock_qty), product_unit
 
 
 # готовим текст для меню с товарами на расчет продаж
@@ -76,7 +75,7 @@ async def selling_menu_text(added_products, outlet_id):
 async def balance_text(outlet_id, product_id, added_pieces):
     # извлекаем название торговой точки
     outlet_data = await get_outlet(outlet_id)
-    outlet_name = outlet_data.outlet_name
+    outlet_name = outlet_data['outlet_name']
     
     # извлекаем некоторые данные выбранного продукта
     stock_product_data = await get_stock_product(outlet_id, product_id)
@@ -110,7 +109,7 @@ async def balance_text(outlet_id, product_id, added_pieces):
             f'{added_pieces_text}' \
             '\nПо окончании добавления всех частей товара нажмите <b>Расчитать</b> в противном случае нажмите <b>Отмена</b>.'
     
-    return text, float(stock_qty), product_unit
+    return text, str(stock_qty), product_unit
 
 
 # меню операций тороговой точки
