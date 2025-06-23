@@ -1,12 +1,20 @@
 import pytz
 
+def localize_user_input(date_time):
+    """Used for naive user input: assume it's in Chisinau local time."""
+    if date_time is None:
+        return None
+    tz = pytz.timezone("Europe/Chisinau")
+    return tz.localize(date_time) if date_time.tzinfo is None else date_time.astimezone(tz)
+
 # Фурнкция для правильного отображения времени с часовым поясом
 def represent_utc_3(date_time):
+    """Used for UTC datetime from DB: convert to Chisinau local time."""
     if date_time is None:
         return None
     tz = pytz.timezone("Europe/Chisinau")
     if date_time.tzinfo is None:
-        date_time = pytz.utc.localize(date_time)  # <-- Assume it's in UTC
+        date_time = pytz.utc.localize(date_time)
     return date_time.astimezone(tz)
 
 # функция для подсчета стоимости вакуумной упаковки

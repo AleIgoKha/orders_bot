@@ -10,7 +10,7 @@ import pytz
 import app.main_menu.sessions.session.order_creation.keyboard as kb
 from app.main_menu.sessions.session.session_menu import session_menu_handler
 from app.main_menu.main_menu import main_menu_handler
-from app.com_func import represent_utc_3
+from app.com_func import represent_utc_3, localize_user_input
 from app.states import Order, Product
 from app.database.requests import get_product, add_order, add_order_items, get_session_by_name, get_session
 
@@ -570,7 +570,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'order_completed': False,
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
-        'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else None,
+        'issue_datetime': localize_user_input(datetime(**data['issue_datetime'])) if data['issue_datetime'] else None,
         # 'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)
