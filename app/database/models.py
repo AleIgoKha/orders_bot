@@ -57,7 +57,7 @@ class Order(Base):
     order_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     order_issued: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("FALSE")) # не использовали
     order_source: Mapped[str | None] = mapped_column(String, nullable=True) # не использовали
-    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('Europe/Chisinau', func.now()), nullable=False)
+    creation_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     finished_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     session: Mapped["Session"] = relationship(back_populates="orders")
@@ -112,7 +112,7 @@ class Transaction(Base):
     transaction_id: Mapped[int] = mapped_column(primary_key=True)
     outlet_id: Mapped[int] = mapped_column(ForeignKey('outlets.outlet_id', ondelete='CASCADE'))
     stock_id: Mapped[int] = mapped_column(ForeignKey('stocks.stock_id'))
-    transaction_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.timezone('Europe/Chisinau', func.now()), nullable=False)
+    transaction_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     transaction_type: Mapped[str] = mapped_column(String)
     transaction_product_name: Mapped[str] = mapped_column(String)
     product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))

@@ -61,13 +61,6 @@ def with_session(commit: bool = False):
 async def selling_statistics(session, outlet_id, date_time):
     start, end = get_chisinau_day_bounds(date_time)
 
-    # Subquery to fetch the latest transaction per product within the time window
-    latest_tx = (
-        select(Stock)
-        .where(Stock.outlet_id == outlet_id)
-        .subquery()
-    )
-
     ProductAlias = aliased(Product)
 
     stmt = (
@@ -75,11 +68,9 @@ async def selling_statistics(session, outlet_id, date_time):
             Transaction.transaction_product_name,
             func.sum(Transaction.product_qty).label('product_sum_qty'),
             ProductAlias.product_unit,
-            func.sum(Transaction.transaction_product_price * Transaction.product_qty).label('product_revenue'),
-            latest_tx.c.stock_qty.label('product_balance')
+            func.sum(Transaction.transaction_product_price * Transaction.product_qty).label('product_revenue')
         )
         .join(ProductAlias, ProductAlias.product_name == Transaction.transaction_product_name)
-        .join(latest_tx, latest_tx.c.stock_id == Transaction.stock_id)
         .where(
             Transaction.outlet_id == outlet_id,
             Transaction.transaction_type.in_(["balance", "selling"]),
@@ -88,8 +79,7 @@ async def selling_statistics(session, outlet_id, date_time):
         )
         .group_by(
             Transaction.transaction_product_name,
-            ProductAlias.product_unit,
-            latest_tx.c.stock_qty
+            ProductAlias.product_unit
         )
     )
 
@@ -99,8 +89,7 @@ async def selling_statistics(session, outlet_id, date_time):
         'product_name': row.transaction_product_name,
         'product_sum_qty': row.product_sum_qty,
         'product_unit': row.product_unit,
-        'product_revenue': row.product_revenue,
-        'product_balance': row.product_balance
+        'product_revenue': row.product_revenue
     } for row in result]
     
     

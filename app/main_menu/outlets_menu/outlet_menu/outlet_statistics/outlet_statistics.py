@@ -73,16 +73,13 @@ async def outlet_statistics_date_handler(callback: CallbackQuery, state: FSMCont
         product_sum_qty = round(product_statistics['product_sum_qty'], 3)
         product_unit = product_statistics['product_unit']
         product_revenue = round(product_statistics['product_revenue'], 2)
-        product_balance = product_statistics['product_balance']
         
         if product_unit != 'кг':
             product_sum_qty = round(product_sum_qty)
-            product_balance = round(product_balance)
         
         text += f'🧀 <b>{product_name}:</b>\n' \
                 f'Продано - <b>{product_sum_qty} {product_unit}</b>\n' \
-                f'Ожидаемая выручка - <b>{product_revenue} руб</b>\n'\
-                f'Остаток <b>{product_balance} {product_unit}</b>\n\n'
+                f'Ожидаемая выручка - <b>{product_revenue} руб</b>\n\n'
                 
         total_revenue += product_revenue
         

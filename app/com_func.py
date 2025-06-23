@@ -2,12 +2,11 @@ import pytz
 
 # Фурнкция для правильного отображения времени с часовым поясом
 def represent_utc_3(date_time):
-    if date_time != None:
-        tz = pytz.timezone("Europe/Chisinau")
-        if date_time.tzinfo is None:
-            return tz.localize(date_time)
-    else:
-        return date_time
+    if date_time is None:
+        return None
+    tz = pytz.timezone("Europe/Chisinau")
+    if date_time.tzinfo is None:
+        date_time = pytz.utc.localize(date_time)  # <-- Assume it's in UTC
     return date_time.astimezone(tz)
 
 # функция для подсчета стоимости вакуумной упаковки
