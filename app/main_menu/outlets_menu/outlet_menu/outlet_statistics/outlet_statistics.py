@@ -5,7 +5,7 @@ from datetime import datetime
 
 import app.main_menu.outlets_menu.outlet_menu.outlet_statistics.keyboard as kb
 from app.database.all_requests.outlet_statistics import selling_statistics
-from app.com_func import represent_utc_3
+from app.com_func import localize_user_input
 
 outlet_statistics = Router()
 
@@ -18,7 +18,7 @@ async def outlet_statistics_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     outlet_id = data['outlet_id']
     
-    now = represent_utc_3(datetime.now())
+    now = localize_user_input(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
@@ -55,9 +55,7 @@ async def outlet_statistics_date_handler(callback: CallbackQuery, state: FSMCont
                             month=date_comp[1],
                             day=date_comp[2])
     
-    aware_dt = represent_utc_3(finished_datetime)
-    
-    selling_statistics_data = await selling_statistics(outlet_id, aware_dt)
+    selling_statistics_data = await selling_statistics(outlet_id, finished_datetime)
     
     # если заказов не было то выводим предупреждение
     if len(selling_statistics_data) == 0:

@@ -1,4 +1,22 @@
 import pytz
+from datetime import time, datetime, timedelta
+
+
+# границы начала и конца дня
+def get_chisinau_day_bounds(date_time: datetime):
+    tz = pytz.timezone("Europe/Chisinau")
+    
+    # Ensure datetime is timezone-aware in Chisinau
+    if date_time.tzinfo is None:
+        date_time = tz.localize(date_time)
+    else:
+        date_time = date_time.astimezone(tz)
+    
+    start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
+    end_of_day = start_of_day + timedelta(days=1)
+    
+    return start_of_day.astimezone(pytz.utc), end_of_day.astimezone(pytz.utc)
+
 
 def localize_user_input(date_time):
     """Used for naive user input: assume it's in Chisinau local time."""

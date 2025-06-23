@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
-from app.com_func import represent_utc_3, vacc_price_counter
+from app.com_func import localize_user_input, vacc_price_counter
 import app.main_menu.sessions.session.session_stats.keyboard as kb
 from app.database.requests import get_session_stats, get_orders_by_date, get_items
 
@@ -34,7 +34,7 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
     callback_name = data['callback_name']
     
     await state.set_state(None)
-    now = represent_utc_3(datetime.now())
+    now = localize_user_input(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
@@ -71,15 +71,11 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
     date_comp = [int(_) for _ in callback.data.split(':')[-3:]]
     finished_datetime = datetime(year=date_comp[0],
                               month=date_comp[1],
-                              day=date_comp[2])
-    
-    # naive_dt = datetime(**finished_datetime)
-    aware_dt = represent_utc_3(finished_datetime)
-            
+                              day=date_comp[2])     
     
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                     datetime=aware_dt,
+                                     date_time=finished_datetime,
                                      issued=True)
     
     if len(orders) == 0:
@@ -102,7 +98,7 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
             total_income += item.item_qty_fact * item.item_price + vacc_price
     
     items_stats = await get_session_stats(session_id,
-                                          datetime=finished_datetime,
+                                          date_time=finished_datetime,
                                           issued=True)
     
     for item_stats in items_stats:
@@ -187,12 +183,9 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
                               month=date_comp[1],
                               day=date_comp[2])
     
-    # naive_dt = datetime(**creation_datetime)
-    aware_dt = represent_utc_3(creation_datetime)
-    
     # получаем номера заказов
     orders = await get_orders_by_date(session_id=session_id,
-                                      datetime=aware_dt,
+                                      date_time=creation_datetime,
                                       issued=False)
     
     if len(orders) == 0:
@@ -215,7 +208,7 @@ async def products_stats_handler(callback: CallbackQuery, state: FSMContext):
             est_revenue += item.item_qty * item.item_price + vacc_price
     
     items_stats = await get_session_stats(session_id,
-                                          datetime=creation_datetime,
+                                          date_time=creation_datetime,
                                           issued=False)
 
     for item_stats in items_stats:

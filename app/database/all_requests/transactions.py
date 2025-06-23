@@ -1,29 +1,12 @@
 from functools import wraps
 from contextlib import asynccontextmanager
-from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from decimal import Decimal
-from datetime import datetime, timedelta, time
-import pytz
+from datetime import datetime
 
 from app.database.models import async_session, Transaction, Stock, Product
-from app.com_func import represent_utc_3
-
-
-# границы начала и конца дня
-def get_chisinau_day_bounds(date_time: datetime):
-    tz = pytz.timezone("Europe/Chisinau")
-    
-    # Ensure datetime is timezone-aware in Chisinau
-    if date_time.tzinfo is None:
-        date_time = tz.localize(date_time)
-    else:
-        date_time = date_time.astimezone(tz)
-    
-    start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
-    end_of_day = start_of_day + timedelta(days=1)
-    
-    return start_of_day, end_of_day
+from app.com_func import get_chisinau_day_bounds
 
 
 # session context manager

@@ -737,7 +737,7 @@ async def issue_place_receiver_handler(message: Message, state: FSMContext):
     issue_place = message.text
     await state.update_data(issue_place=issue_place)
     
-    now = represent_utc_3(datetime.now())
+    now = localize_user_input(datetime.now())
     year = now.year
     month = now.month
     await message.bot.edit_message_text(chat_id=data['chat_id'],

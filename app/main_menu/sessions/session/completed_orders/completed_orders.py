@@ -3,12 +3,11 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
-from pytz import timezone
 
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
 from app.database.requests import change_order_data, get_not_issued_orders_sorted, get_order_items, get_orders
 from app.main_menu.sessions.session.session_menu import back_to_session_menu_handler
-from app.com_func import group_orders_items, vacc_price_counter, represent_utc_3
+from app.com_func import group_orders_items, vacc_price_counter, localize_user_input
 from app.states import Order
 
 completed_orders = Router()
@@ -136,7 +135,7 @@ async def issued_order_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод заказа в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:change_status")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = represent_utc_3(datetime.now())
+    finished_datetime = localize_user_input(datetime.now())
     await state.update_data(finished_datetime={
                                 'year': finished_datetime.year,
                                 'month': finished_datetime.month,
@@ -184,7 +183,7 @@ async def finished_datetime_receiver_handler(message: Message, state: FSMContext
         except TelegramBadRequest:
             return None
         
-    text_date = represent_utc_3(datetime(**finished_datetime))
+    text_date = localize_user_input(datetime(**finished_datetime))
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text=f'Вы указали дату выдачи заказа <b>{text_date.strftime('%d-%m-%Y')}</b>.',
@@ -199,7 +198,7 @@ async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
     order_id = data['order_id']
     finished_datetime = data['finished_datetime']
     order_data = {
-        'finished_datetime': represent_utc_3(datetime(**finished_datetime)),
+        'finished_datetime': localize_user_input(datetime(**finished_datetime)),
         'order_issued': True,
         'order_completed': False
     }
@@ -211,7 +210,7 @@ async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод всех заказов в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:issue_all")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = represent_utc_3(datetime.now())
+    finished_datetime = localize_user_input(datetime.now())
     await callback.message.edit_text(text='❓ <b>ПОДТВЕРДИТЕ ВЫДАЧУ ВСЕХ ЗАКАЗОВ</b>\n\n' \
                                             'Чтобы подтвердить выдачу ВСЕХ готовых заказов введите дату выдачи в формате <i>ДД-ММ-ГГГ</i>\n\n' \
                                             f'Сегодня - <b>{finished_datetime.strftime('%d-%m-%Y')}</b>',
@@ -225,7 +224,7 @@ async def change_status_handler(callback: CallbackQuery, state: FSMContext):
 async def finished_datetime_all_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
-    finished_datetime = represent_utc_3(datetime.now())
+    finished_datetime = localize_user_input(datetime.now())
     
     try:
         date_comp = [int(_) for _ in message.text.split('-')]
@@ -253,7 +252,7 @@ async def finished_datetime_all_receiver_handler(message: Message, state: FSMCon
         except TelegramBadRequest:
             return None
         
-    text_date = represent_utc_3(datetime(**finished_datetime))
+    text_date = localize_user_input(datetime(**finished_datetime))
     await message.bot.edit_message_text(chat_id=data['chat_id'],
                                         message_id=data['message_id'],
                                         text=f'Вы указали дату выдачи для ВСЕХ готовых заказов <b>{text_date.strftime('%d-%m-%Y')}</b>.',
@@ -273,7 +272,7 @@ async def mark_issued_all_handler(callback: CallbackQuery, state: FSMContext):
         order_id = order.order_id
         finished_datetime = data['finished_datetime']
         order_data = {
-            'finished_datetime': represent_utc_3(datetime(**finished_datetime)),
+            'finished_datetime': localize_user_input(datetime(**finished_datetime)),
             'order_issued': True,
             'order_completed': False
         }

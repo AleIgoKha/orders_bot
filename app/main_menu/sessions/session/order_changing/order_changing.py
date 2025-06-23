@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime
 import pytz
 
 
@@ -13,7 +13,7 @@ from app.states import Item, Order
 from app.database.requests import get_order_items, get_item, change_item_data, change_order_data, get_product, add_order_items, delete_items, delete_order, get_order, change_items_data, get_session, change_order_session_id, get_items
 from app.main_menu.sessions.session.completed_orders.completed_orders import completed_orders_list_handler
 from app.main_menu.sessions.session.order_processing.order_processing import orders_processing_handler
-from app.com_func import group_orders_items, order_text, represent_utc_3
+from app.com_func import group_orders_items, order_text, represent_utc_3, localize_user_input
 
 order_changing = Router()
 
@@ -932,7 +932,7 @@ async def issue_date_handler(callback: CallbackQuery, state: FSMContext):
         issue_opt = 'ВЫДАЧИ'
         
     await state.set_state(None)
-    now = represent_utc_3(datetime.now())
+    now = localize_user_input(datetime.now())
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
@@ -1010,7 +1010,7 @@ async def issue_datetime_receiver_handler(message: Message, state: FSMContext):
             return None
     
     naive_dt = datetime(**issue_datetime)
-    aware_dt = represent_utc_3(naive_dt)
+    aware_dt = localize_user_input(naive_dt)
             
     order_data = {'issue_datetime': aware_dt}
     
@@ -1047,7 +1047,7 @@ async def issue_datetime_handler(callback: CallbackQuery, state: FSMContext):
             'day': date_comp[2]
         }
         naive_dt = datetime(**issue_datetime)
-        aware_dt = represent_utc_3(naive_dt)
+        aware_dt = localize_user_input(naive_dt)
                 
         order_data = {'issue_datetime': aware_dt}
     else:
@@ -1142,7 +1142,7 @@ async def issue_time_receiver_handler(message: Message, state: FSMContext):
             return None
         
     naive_dt = datetime(**issue_datetime_parts)
-    aware_dt = represent_utc_3(naive_dt)
+    aware_dt = localize_user_input(naive_dt)
             
     order_data = {'issue_datetime': aware_dt}
     await change_order_data(order_id, order_data)
@@ -1183,7 +1183,7 @@ async def delete_time_handler(callback: CallbackQuery, state: FSMContext):
         }
     
     naive_dt = datetime(**issue_datetime_parts)
-    aware_dt = represent_utc_3(naive_dt)
+    aware_dt = localize_user_input(naive_dt)
     
     order_data = {'issue_datetime': aware_dt}
     await change_order_data(order_id, order_data)
