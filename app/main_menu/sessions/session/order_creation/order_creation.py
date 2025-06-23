@@ -554,8 +554,8 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
     data = await state.get_data()
     session_id = data['session_id']
     
-    tz = pytz.timezone("Europe/Chisinau")
-    localized_midnight = tz.localize(datetime.combine(datetime.now(tz).date(), time(0, 0)))
+    # tz = pytz.timezone("Europe/Chisinau")
+    # localized_midnight = tz.localize(datetime.combine(datetime.now(tz).date(), time(0, 0)))
 
     
     # Создаем новый заказ в базе данных
@@ -571,7 +571,7 @@ async def confirm_order_creation_handler(callback: CallbackQuery, state: FSMCont
         'issue_method': data['issue_method'],
         'issue_place': data['issue_place'],
         'issue_datetime': represent_utc_3(datetime(**data['issue_datetime'])) if data['issue_datetime'] else None,
-        'creation_datetime': localized_midnight
+        # 'creation_datetime': localized_midnight
     }
     order_id = await add_order(order_data, session_id)
     
