@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
+import pytz
 
 from app.database.models import async_session, Transaction, Stock, Product
 from app.com_func import get_chisinau_day_bounds
@@ -270,7 +271,7 @@ async def transaction_balance(session, outlet_id, product_id, product_qty):
 
 @with_session()
 async def was_balance_today(session, stock_id):
-    start, end = get_chisinau_day_bounds(datetime.now())
+    start, end = get_chisinau_day_bounds(datetime.now(pytz.timezone("Europe/Chisinau")))
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0

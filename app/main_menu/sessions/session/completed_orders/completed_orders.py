@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
+import pytz
 
 import app.main_menu.sessions.session.completed_orders.keyboard as kb
 from app.database.requests import change_order_data, get_not_issued_orders_sorted, get_order_items, get_orders
@@ -135,7 +136,7 @@ async def issued_order_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод заказа в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:change_status")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = localize_user_input(datetime.now())
+    finished_datetime = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     await state.update_data(finished_datetime={
                                 'year': finished_datetime.year,
                                 'month': finished_datetime.month,
@@ -210,7 +211,7 @@ async def mark_issued_handler(callback: CallbackQuery, state: FSMContext):
 # инициируем перевод всех заказов в статус выданного и просим подтверждения
 @completed_orders.callback_query(F.data == "completed_orders:issue_all")
 async def change_status_handler(callback: CallbackQuery, state: FSMContext):
-    finished_datetime = localize_user_input(datetime.now())
+    finished_datetime = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     await callback.message.edit_text(text='❓ <b>ПОДТВЕРДИТЕ ВЫДАЧУ ВСЕХ ЗАКАЗОВ</b>\n\n' \
                                             'Чтобы подтвердить выдачу ВСЕХ готовых заказов введите дату выдачи в формате <i>ДД-ММ-ГГГ</i>\n\n' \
                                             f'Сегодня - <b>{finished_datetime.strftime('%d-%m-%Y')}</b>',
@@ -224,7 +225,7 @@ async def change_status_handler(callback: CallbackQuery, state: FSMContext):
 async def finished_datetime_all_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
-    finished_datetime = localize_user_input(datetime.now())
+    finished_datetime = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     
     try:
         date_comp = [int(_) for _ in message.text.split('-')]

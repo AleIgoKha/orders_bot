@@ -18,6 +18,7 @@ def get_chisinau_day_bounds(date_time: datetime):
     return start_of_day.astimezone(pytz.utc), end_of_day.astimezone(pytz.utc)
 
 
+# функция для локализации инпута и now()
 def localize_user_input(date_time):
     """Used for naive user input: assume it's in Chisinau local time."""
     if date_time is None:

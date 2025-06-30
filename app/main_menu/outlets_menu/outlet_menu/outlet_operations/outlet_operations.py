@@ -3,12 +3,15 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
+from datetime import datetime
+import pytz
 
 import app.main_menu.outlets_menu.outlet_menu.outlet_operations.keyboard as kb
 from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.transactions import transaction_selling, transaction_balance
+from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction
 from app.database.all_requests.outlet import get_outlet
+from app.com_func import represent_utc_3, localize_user_input
 
 outlet_operations = Router()
 
@@ -464,7 +467,6 @@ async def product_balance_handler(callback: CallbackQuery, state: FSMContext):
 # принимаем введенное количество товара для расчета продаж по остатку
 @outlet_operations.message(Stock.balance)
 async def product_balance_receiver_handler(message: Message, state: FSMContext):
-    
     await state.set_state(None)
     
     data = await state.get_data()
@@ -586,6 +588,8 @@ async def choose_balance_selling_handler(callback: CallbackQuery, state: FSMCont
 # меню отмены расчета баланса
 @outlet_operations.callback_query(F.data == 'outlet:balance:cancel')
 async def cancel_balance_product_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    
     data = await state.get_data()
     product_id = data['product_id']
     
@@ -597,7 +601,9 @@ async def cancel_balance_product_handler(callback: CallbackQuery, state: FSMCont
     
 # меню финального расчета баланса
 @outlet_operations.callback_query(F.data == 'outlet:balance:calculate')
-async def calculate_balance_product_handler(callback: CallbackQuery, state: FSMContext):  
+async def calculate_balance_product_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    
     data = await state.get_data()
     added_pieces = data['added_pieces']
     product_id = data['product_id']
@@ -638,9 +644,11 @@ async def calculate_balance_product_handler(callback: CallbackQuery, state: FSMC
                                                 reply_markup=kb.confirm_balance_product(product_id))
         
         
-# после подтверждения создаем транзакцию
+# после подтверждения создаем транзакцию по обновлению запасов и продаже товаров
 @outlet_operations.callback_query(F.data == 'outlet:balance:confirm')
 async def confirm_balance_product_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    
     data = await state.get_data()
     added_pieces = data['added_pieces']
     product_id = data['product_id']
@@ -661,5 +669,78 @@ async def confirm_balance_product_handler(callback: CallbackQuery, state: FSMCon
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
     
 
+# инициируем отмену предыдущей транзакции обновления остатка
+@outlet_operations.callback_query(F.data == 'outlet:balance:rollback')
+async def rollback_balance_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    data = await state.get_data()
+
+    product_id = data['product_id']
+    outlet_id = data['outlet_id']
+    product_unit = data['product_unit']
     
+    # извлекаем некоторые данные выбранного продукта
+    stock_product_data = await get_stock_product(outlet_id, product_id)
+    product_name = stock_product_data['product_name']
+    stock_id = stock_product_data['stock_id']
     
+    # информация о последней транзакции
+    last_transaction_data = await get_last_transaction(outlet_id, stock_id, "balance")
+    
+    # если транзакций нет, то предупреждаем
+    if last_transaction_data is None:
+        await callback.answer(text='Транзакций не найдено', show_alert=True)
+        return None
+    
+    # если нет транзакций сегодня, то предупреждаем
+    transaction_datetime = represent_utc_3(last_transaction_data['transaction_datetime'])
+    transaction_date_str = transaction_datetime.strftime('%d-%m-%Y')
+    
+    now_date_str = datetime.now(pytz.timezone("Europe/Chisinau")).strftime('%d-%m-%Y')
+    
+    if transaction_date_str != now_date_str:
+        await callback.answer(text='Транзакция недоступна', show_alert=True)
+        return None
+    
+    product_qty = last_transaction_data['product_qty']
+    balance_after = last_transaction_data['balance_after']
+    
+    text = f'❗️<b> ВНИМАНИЕ</b>\n\n' \
+            f'Вы пытаетесь удалить последнюю транзакцию расчета продаж товара по остатку.\n\n' \
+            f'Информация о транзакции:\n' \
+            f'Дата и время - <b>{transaction_datetime.strftime('%H:%M %d-%m-%Y')}</b>\n' \
+            f'Название товара - <b>{product_name}</b>\n' \
+            f'Запас до расчета остатка - <b>{product_qty + balance_after} {product_unit}</b>\n' \
+            f'Новый указанный остаток - <b>{balance_after} {product_unit}</b>\n' \
+            f'Рассчетное количество проданного товара - <b>{product_qty} {product_unit}</b>\n\n' \
+            'Если все правильно, для удаления транзакции введите слово <i>УДАЛИТЬ</i>, в противном случае нажмите <b>Отмена</b>'
+    
+    await callback.message.edit_text(text=text,
+                                     parse_mode='HTML',
+                                     reply_markup=kb.cancel_balance_rollback(product_id))
+    
+    await state.set_state(Stock.rollback_balance)
+    
+
+# подтверждаем удаление транзакции
+@outlet_operations.message(Stock.rollback_balance)
+async def rollback_balance_receiver_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    
+    data = await state.get_data()
+    chat_id = data['chat_id']
+    message_id = data['message_id']
+    product_id = data['product_id']
+    
+    if message.text.lower().strip() == 'удалить':
+        text = '❗️<b> ВНИМАНИЕ</b>\n\n' \
+                'Вы пытаетесь удалить последнюю транзакцию расчета продаж товара по остатку.\n\n' \
+                'Если вы уверены, что хотите удалить транзакцию, нажмите <b>Подтвердить</b>, в противном случае нажмите <b>Отмена</b>'
+        await message.bot.edit_message_text(chat_id=chat_id,
+                                            message_id=message_id,
+                                            text=text,
+                                            reply_markup=kb.confirm_balance_rollback(product_id),
+                                            parse_mode='HTML')
+        
+    else:
+        return None

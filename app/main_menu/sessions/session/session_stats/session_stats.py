@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
+import pytz
 
 from app.com_func import localize_user_input, vacc_price_counter
 import app.main_menu.sessions.session.session_stats.keyboard as kb
@@ -34,7 +35,7 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
     callback_name = data['callback_name']
     
     await state.set_state(None)
-    now = localize_user_input(datetime.now())
+    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
