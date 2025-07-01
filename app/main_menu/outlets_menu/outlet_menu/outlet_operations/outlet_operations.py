@@ -11,7 +11,7 @@ from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
 from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling
 from app.database.all_requests.outlet import get_outlet
-from app.com_func import represent_utc_3, localize_user_input
+from app.com_func import represent_utc_3
 
 outlet_operations = Router()
 

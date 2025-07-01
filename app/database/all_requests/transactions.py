@@ -309,9 +309,15 @@ async def rollback_selling(session, transaction_id, stock_id):
     
     transaction_data = await session.scalar(select(Transaction).where(Transaction.transaction_id == transaction_id))
     
+    if not transaction_data:
+        raise ValueError(f"Transaction {transaction_id} not found.")
+    
     stock_data = await session.scalar(select(Stock).where(Stock.stock_id == stock_id).with_for_update())
     
-    stock_data.stock_qty = transaction_data.product_qty + stock_data.stock_qty
+    if not stock_data:
+        raise ValueError(f"Stock {stock_id} not found.")
+    
+    stock_data.stock_qty += transaction_data.product_qty
     stock_data.stock_active = True
     
     await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))

@@ -8,7 +8,7 @@ import app.main_menu.keyboard as kb
 
 main_menu = Router()
 
-admin_list = [524794800, 405514693, 450847990]
+admin_list = [524794800, 405514693, 450847990, 7634611527]
 
 class Admin(Filter):
     async def __call__(self, message: Message):
