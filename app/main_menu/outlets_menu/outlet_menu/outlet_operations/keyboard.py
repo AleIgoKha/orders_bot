@@ -249,7 +249,7 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
 
 
 # для меню расчета по остатку
-def balance_product(added_pieces):
+def balance_product(added_pieces, check_flag=False):
     inline_keyboard = []
     upper_buttons = []
     lower_buttons = []
@@ -258,7 +258,8 @@ def balance_product(added_pieces):
         upper_buttons.append(InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:balance:correct_piece'))
         lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:balance:calculate'))
     
-    upper_buttons.append(InlineKeyboardButton(text='☠️ Откатить', callback_data='outlet:balance:rollback'))
+    if check_flag:
+        upper_buttons.append(InlineKeyboardButton(text='☠️ Откатить', callback_data='outlet:balance:rollback'))
     
     lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel'))
     
