@@ -1,6 +1,6 @@
 from functools import wraps
 from contextlib import asynccontextmanager
-from sqlalchemy import select, func
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
@@ -302,6 +302,21 @@ async def were_sellings(session, outlet_id, date_time):
 
     result = await session.scalar(stmt)
     return result
+
+
+@with_session(commit=True)
+async def rollback_selling(session, transaction_id, stock_id):
+    
+    transaction_data = await session.scalar(select(Transaction).where(Transaction.transaction_id == transaction_id))
+    
+    stock_data = await session.scalar(select(Stock).where(Stock.stock_id == stock_id).with_for_update())
+    
+    stock_data.stock_qty = transaction_data.product_qty + stock_data.stock_qty
+    stock_data.stock_active = True
+    
+    await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
+    
+    
     
 
 # переделать все на возвращение словаря и одиночных значений вместо возвращения ORM объектов (хотябы новые)

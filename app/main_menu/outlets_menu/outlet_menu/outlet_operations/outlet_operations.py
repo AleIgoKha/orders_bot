@@ -9,7 +9,7 @@ import pytz
 import app.main_menu.outlets_menu.outlet_menu.outlet_operations.keyboard as kb
 from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction
+from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling
 from app.database.all_requests.outlet import get_outlet
 from app.com_func import represent_utc_3, localize_user_input
 
@@ -690,6 +690,7 @@ async def rollback_balance_handler(callback: CallbackQuery, state: FSMContext):
     # если транзакций нет, то предупреждаем
     if last_transaction_data is None:
         await callback.answer(text='Транзакций не найдено', show_alert=True)
+        await state.set_state(Stock.balance)
         return None
     
     # если нет транзакций сегодня, то предупреждаем
@@ -700,6 +701,7 @@ async def rollback_balance_handler(callback: CallbackQuery, state: FSMContext):
     
     if transaction_date_str != now_date_str:
         await callback.answer(text='Транзакция недоступна', show_alert=True)
+        await state.set_state(Stock.balance)
         return None
     
     product_qty = last_transaction_data['product_qty']
@@ -743,4 +745,28 @@ async def rollback_balance_receiver_handler(message: Message, state: FSMContext)
                                             parse_mode='HTML')
         
     else:
+        await state.set_state(Stock.rollback_balance)
         return None
+    
+
+@outlet_operations.callback_query(F.data == 'outlet:balance:rollback:confirm')
+async def rollback_balance_confirm_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    # извлекаем id запасов
+    stock_product_data = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_product_data['stock_id']
+    
+    # извлекаем id транзакции
+    last_transaction_data = await get_last_transaction(outlet_id, stock_id, "balance")
+    transaction_id = last_transaction_data['transaction_id']
+    
+    try:
+        await rollback_selling(transaction_id, stock_id)
+        await callback.answer(text='Транзакция успешно удалена', show_alert=True)
+        await choose_product_balance_handler(callback, state)
+    except:
+        await callback.answer(text='Невозможно удалить транзакцию', show_alert=True)
