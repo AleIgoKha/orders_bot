@@ -932,7 +932,7 @@ async def issue_date_handler(callback: CallbackQuery, state: FSMContext):
         issue_opt = 'ВЫДАЧИ'
         
     await state.set_state(None)
-    now = localize_user_input(datetime.now())
+    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад

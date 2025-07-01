@@ -31,6 +31,7 @@ class Stock(StatesGroup):
     writeoff = State()
     selling = State()
     balance = State()
+    rollback_balance = State()
     
     
 class Order(StatesGroup):

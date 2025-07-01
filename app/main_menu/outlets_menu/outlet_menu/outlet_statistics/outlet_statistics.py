@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
+import pytz
 
 import app.main_menu.outlets_menu.outlet_menu.outlet_statistics.keyboard as kb
 from app.database.all_requests.outlet_statistics import selling_statistics
@@ -18,7 +19,7 @@ async def outlet_statistics_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     outlet_id = data['outlet_id']
     
-    now = localize_user_input(datetime.now())
+    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад

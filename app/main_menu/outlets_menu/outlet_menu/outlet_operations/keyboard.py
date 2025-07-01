@@ -251,13 +251,18 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
 # для меню расчета по остатку
 def balance_product(added_pieces):
     inline_keyboard = []
+    upper_buttons = []
     lower_buttons = []
     
     if len(added_pieces) != 0:
-        inline_keyboard.append([InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:balance:correct_piece')])
+        upper_buttons.append(InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:balance:correct_piece'))
         lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:balance:calculate'))
     
+    upper_buttons.append(InlineKeyboardButton(text='☠️ Откатить', callback_data='outlet:balance:rollback'))
+    
     lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel'))
+    
+    inline_keyboard.append(upper_buttons)
     
     inline_keyboard.append(lower_buttons)
         
@@ -320,3 +325,18 @@ def choose_product_correct_piece(product_id: int, added_pieces: list, page: int 
         product_keyboard.row(*navigation_buttons)
 
     return product_keyboard.as_markup()
+
+
+# отмена отката последней транзакции
+def cancel_balance_rollback(product_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:balance:product_id_{product_id}')]
+    ])
+    
+    
+# отмена отката последней транзакции
+def confirm_balance_rollback(product_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='🗑 Подтвердить', callback_data=f'outlet:balance:rollback:confirm'),
+        InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:balance:product_id_{product_id}')]
+    ])

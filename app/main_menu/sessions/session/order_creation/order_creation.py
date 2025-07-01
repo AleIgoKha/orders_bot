@@ -711,7 +711,7 @@ async def add_address_handler(callback: CallbackQuery, state: FSMContext):
     if issue_place:
         current_address = f'Текущий адресс доставки - <b>{issue_place}</b>\n\n'
     
-    await callback.message.edit_text(text='❓ <b>ВВЕДИТЕ АДРЕСС ДОСТАВКИ</b>\n\n'
+    await callback.message.edit_text(text='❓ <b>ВВЕДИТЕ АДРЕС ДОСТАВКИ</b>\n\n'
                                             f'{current_address}',
                                         reply_markup=kb.cancel_delivery_address,
                                         parse_mode='HTML')
@@ -737,7 +737,7 @@ async def issue_place_receiver_handler(message: Message, state: FSMContext):
     issue_place = message.text
     await state.update_data(issue_place=issue_place)
     
-    now = localize_user_input(datetime.now())
+    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
     await message.bot.edit_message_text(chat_id=data['chat_id'],
@@ -778,7 +778,7 @@ async def new_session_handler(callback: CallbackQuery, state: FSMContext):
         current_date = f'Текущая дата - <b>{day_cur:02d}-{month_cur:02d}-{year_cur}</b>\n\n.'
         
     await state.set_state(None)
-    now = represent_utc_3(datetime.now())
+    now = represent_utc_3(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
     # Переключаем месяца вперед и назад
@@ -1043,5 +1043,5 @@ async def save_disc_item_handler(message: Message, state: FSMContext):
                                         text=text,
                                         reply_markup=kb.new_order_keyboard,
                                         parse_mode='HTML')
-    
-    
+
+
