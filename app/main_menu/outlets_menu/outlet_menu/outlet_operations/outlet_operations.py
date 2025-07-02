@@ -462,6 +462,7 @@ async def choose_product_balance_handler(callback: CallbackQuery, state: FSMCont
 
 
 # принимаем продукт для фиксации баланса и предлагаем ввести его количество частями или сразу
+# либо предлагаем сделать откатить транзакцию подсчета остатков на сегодняшний день
 @outlet_operations.callback_query(F.data.startswith('outlet:balance:product_id_'))
 async def product_balance_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)

@@ -105,7 +105,9 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty):
         transaction_product_name=stock_data.product.product_name,
         product_qty=product_qty,
         transaction_product_price=stock_data.product.product_price,
-        balance_after=new_qty
+        balance_after=new_qty,
+        transaction_info=None,
+        transaction_note=None
     )
     
     # добавляем транзакцию
@@ -144,7 +146,9 @@ async def transaction_writeoff(session, outlet_id, product_id, product_qty):
         transaction_product_name=stock_data.product.product_name,
         product_qty=Decimal(product_qty),
         transaction_product_price=stock_data.product.product_price,
-        balance_after=new_qty
+        balance_after=new_qty,
+        transaction_info=None,
+        transaction_note=None
     )
     
     # добавляем транзакцию
@@ -174,7 +178,9 @@ async def transaction_delete_product(session, outlet_id, product_id):
         transaction_product_name=stock_data.product.product_name,
         product_qty=stock_data.stock_qty,
         transaction_product_price=stock_data.product.product_price,
-        balance_after=Decimal(0)
+        balance_after=Decimal(0),
+        transaction_info=None,
+        transaction_note=None
     )
     
     # добавляем транзакцию
@@ -223,7 +229,9 @@ async def transaction_selling(session, outlet_id, added_products):
             transaction_product_name=stock_data.product.product_name,
             product_qty=Decimal(product_qty),
             transaction_product_price=stock_data.product.product_price,
-            balance_after=new_qty
+            balance_after=new_qty,
+            transaction_info=None,
+            transaction_note=None
         )
         
         # добавляем транзакцию
@@ -262,7 +270,9 @@ async def transaction_balance(session, outlet_id, product_id, product_qty):
         transaction_product_name=stock_data.product.product_name,
         product_qty=qty_diff,
         transaction_product_price=stock_data.product.product_price,
-        balance_after=Decimal(product_qty)
+        balance_after=Decimal(product_qty),
+        transaction_info=None,
+        transaction_note=None
     )
     
     # добавляем транзакцию
