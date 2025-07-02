@@ -241,8 +241,8 @@ async def transaction_selling(session, outlet_id, added_products):
 # проводим транзакцию продажи по балансу
 @with_session(commit=True)
 async def transaction_balance(session, outlet_id, product_id, product_qty):
-    if product_qty <= 0:
-        raise ValueError("Replenishment quantity must be positive.")
+    if product_qty < 0:
+        raise ValueError("Replenishment quantity must be positive or zero.")
     
     stock_data = await session.scalar(
         select(Stock) \
