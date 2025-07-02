@@ -118,6 +118,8 @@ class Transaction(Base):
     product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))
     transaction_product_price: Mapped[Decimal] = mapped_column(Numeric(9, 2))
     balance_after: Mapped[Decimal] = mapped_column(Numeric(9, 3), nullable=True)
+    transaction_info: Mapped[str | None] = mapped_column(String, nullable=True)
+    transaction_note: Mapped[str | None] = mapped_column(String, nullable=True)
     
     outlet: Mapped["Outlet"] = relationship(back_populates="transactions")
 

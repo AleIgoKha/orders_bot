@@ -118,17 +118,39 @@ add_product = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment:add_product')]
 ])
 
-# кнопка для отмены пополнения
-replenish_product = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment')]
-])
+# для меню пополнения
+def replenish_product(added_pieces):
+    inline_keyboard = []
+    upper_buttons = []
+    lower_buttons = []
+    
+    if len(added_pieces) != 0:
+        upper_buttons.append(InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:replenishment:correct_piece'))
+        lower_buttons.append(InlineKeyboardButton(text='🧮 Рассчитать', callback_data='outlet:replenishment:calculate'))
+    
+    lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment:cancel'))
+    
+    inline_keyboard.append(upper_buttons)
+    
+    inline_keyboard.append(lower_buttons)
+        
+    return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
-# Подтверждение пополнения запасов
-confirm_replenish = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:replenishment:confirm')],
-    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:replenishment')]
-])
+# меню подтверждения пополнения
+def confirm_replenishment_product(product_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:replenishment:product_id_{product_id}'),
+        InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:replenishment:confirm')]
+    ])
+    
+    
+# меню отмены пополнения запасов товара
+def cancel_replenishment_product(product_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:replenishment:product_id_{product_id}'),
+        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data='outlet:replenishment')]
+    ])
 
 
 # выбор продукта для изменения
@@ -199,5 +221,48 @@ confirm_delete = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:stock:delete:confirm')],
     [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:writeoff')]
 ])
+
+
+# меню выбора куска для корректировки его веса
+def choose_replenishment_product_correct_piece(product_id: int, added_pieces: list, page: int = 1, products_per_page: int = 8):
+    product_keyboard = InlineKeyboardBuilder()
+    
+    start = (page - 1) * products_per_page
+    end = start + products_per_page
+    pieces = added_pieces[start:end]
+
+    for i in range(len(pieces)):
+        text = f"{pieces[i]}"
+        callback_data = f"outlet:replenishment:correct_piece:piece_id_{i}"
+        product_keyboard.add(InlineKeyboardButton(text=text, callback_data=callback_data))
+    
+    product_keyboard.adjust(1)
+    
+    navigation_buttons = []
+    
+    if page > 1:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data=f"outlet:replenishment:correct_piece:page_{page - 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:replenishment:correct_piece:page_edge")
+        )
+    
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:replenishment:product_id_{product_id}'))
+    
+    if end < len(added_pieces):
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data=f"outlet:replenishment:correct_piece:page_{page + 1}")
+        )
+    else:
+        navigation_buttons.append(
+            InlineKeyboardButton(text="Далее ➡️", callback_data="outlet:replenishment:correct_piece:page_edge")
+        )
+        
+    if navigation_buttons:
+        product_keyboard.row(*navigation_buttons)
+
+    return product_keyboard.as_markup()
 
 
