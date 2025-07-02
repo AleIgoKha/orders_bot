@@ -538,10 +538,10 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
         # количество продукта с учетом последнего добавленного куска
         total_qty = product_qty + Decimal(sum(added_pieces))
         
-        if product_qty <= 0:
+        if product_qty < 0:
             try:
                 await state.set_state(Stock.balance)
-                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ИЛИ РАВНО НУЛЮ</b>\n\n'
+                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ НУЛЯ</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
