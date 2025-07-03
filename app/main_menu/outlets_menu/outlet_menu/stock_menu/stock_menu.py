@@ -388,18 +388,21 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
     
     outlet_id = data['outlet_id']
     product_id = data['product_id']
-    product_qty = Decimal(sum(data['added_pieces']))
+    added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
+    product_qty = sum(added_pieces)
     product_unit = data['product_unit']
 
     if product_unit == 'кг':
         product_qty = product_qty / Decimal(1000)
+        added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
 
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
-        await transaction_replenish(outlet_id, product_id, product_qty)
+        await transaction_replenish(outlet_id, product_id, product_qty, added_pieces)
         await callback.answer(text='Запасы продукта успешно пополнены')
         await choose_product_replenishment_handler(callback, state)
-    except:
+    except Exception as e:
+        print(e)
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
     
     # переходив в меню пополнения
@@ -632,15 +635,17 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     outlet_id = data['outlet_id']
     product_id = data['product_id']
-    product_qty = Decimal(sum(data['added_pieces']))
+    added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
+    product_qty = sum(added_pieces)
     product_unit = data['product_unit']
 
     if product_unit == 'кг':
         product_qty = product_qty / Decimal(1000)
+        added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
 
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
-        await transaction_writeoff(outlet_id, product_id, product_qty)
+        await transaction_writeoff(outlet_id, product_id, product_qty, added_pieces)
         await callback.answer(text='Запасы продукта успешно списаны')
         await choose_product_writeoff_handler(callback, state)
     except:

@@ -77,7 +77,7 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
 
 # проводим транзакцию пополнения товара
 @with_session(commit=True)
-async def transaction_replenish(session, outlet_id, product_id, product_qty):
+async def transaction_replenish(session, outlet_id, product_id, product_qty, added_pieces: list=None):
     if product_qty <= 0:
         raise ValueError("Replenishment quantity must be positive.")
     
@@ -106,7 +106,7 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty):
         product_qty=product_qty,
         transaction_product_price=stock_data.product.product_price,
         balance_after=new_qty,
-        transaction_info=None,
+        transaction_info=added_pieces,
         transaction_note=None
     )
     
@@ -116,7 +116,7 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty):
 
 # проводим транзакцию списания товара
 @with_session(commit=True)
-async def transaction_writeoff(session, outlet_id, product_id, product_qty):
+async def transaction_writeoff(session, outlet_id, product_id, product_qty, added_pieces: list=None):
     if product_qty <= 0:
         raise ValueError("Replenishment quantity must be positive.")
     
@@ -147,7 +147,7 @@ async def transaction_writeoff(session, outlet_id, product_id, product_qty):
         product_qty=Decimal(product_qty),
         transaction_product_price=stock_data.product.product_price,
         balance_after=new_qty,
-        transaction_info=None,
+        transaction_info=added_pieces,
         transaction_note=None
     )
     
@@ -192,7 +192,8 @@ async def transaction_delete_product(session, outlet_id, product_id):
 async def transaction_selling(session, outlet_id, added_products):
     
     for product_id in added_products.keys():
-        product_qty = sum(added_products[product_id])
+        added_pieces = [Decimal(added_piece) for added_piece in added_products[product_id]]
+        product_qty = sum(added_pieces)
         product_id = int(product_id)
         
         if product_qty <= 0:
@@ -211,7 +212,8 @@ async def transaction_selling(session, outlet_id, added_products):
         product_unit = stock_data.product.product_unit
         
         if product_unit == 'кг':
-            product_qty = Decimal(product_qty) / Decimal(1000)
+            product_qty = product_qty / Decimal(1000)
+            added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
         
         current_qty = stock_data.stock_qty
         new_qty = current_qty - Decimal(product_qty)
@@ -230,7 +232,7 @@ async def transaction_selling(session, outlet_id, added_products):
             product_qty=Decimal(product_qty),
             transaction_product_price=stock_data.product.product_price,
             balance_after=new_qty,
-            transaction_info=None,
+            transaction_info=added_pieces,
             transaction_note=None
         )
         
@@ -240,7 +242,7 @@ async def transaction_selling(session, outlet_id, added_products):
 
 # проводим транзакцию продажи по балансу
 @with_session(commit=True)
-async def transaction_balance(session, outlet_id, product_id, product_qty):
+async def transaction_balance(session, outlet_id, product_id, product_qty, added_pieces: list=None):
     if product_qty < 0:
         raise ValueError("Replenishment quantity must be positive or zero.")
     
@@ -271,7 +273,7 @@ async def transaction_balance(session, outlet_id, product_id, product_qty):
         product_qty=qty_diff,
         transaction_product_price=stock_data.product.product_price,
         balance_after=Decimal(product_qty),
-        transaction_info=None,
+        transaction_info=added_pieces,
         transaction_note=None
     )
     

@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from sqlalchemy import String, Numeric, ForeignKey, Boolean, Integer, DateTime, text, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from decimal import Decimal
 from datetime import datetime
@@ -118,7 +119,7 @@ class Transaction(Base):
     product_qty: Mapped[Decimal] = mapped_column(Numeric(9, 3))
     transaction_product_price: Mapped[Decimal] = mapped_column(Numeric(9, 2))
     balance_after: Mapped[Decimal] = mapped_column(Numeric(9, 3), nullable=True)
-    transaction_info: Mapped[str | None] = mapped_column(String, nullable=True)
+    transaction_info: Mapped[list[Decimal] | None] = mapped_column(ARRAY(Numeric(9, 3)), nullable=True)
     transaction_note: Mapped[str | None] = mapped_column(String, nullable=True)
     
     outlet: Mapped["Outlet"] = relationship(back_populates="transactions")
