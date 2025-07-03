@@ -694,19 +694,18 @@ async def confirm_balance_product_handler(callback: CallbackQuery, state: FSMCon
     await state.set_state(None)
     
     data = await state.get_data()
-    added_pieces = data['added_pieces']
     product_id = data['product_id']
     outlet_id = data['outlet_id']
+    added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
+    product_qty = sum(added_pieces)
     product_unit = data['product_unit']
-    
-    product_qty = Decimal(sum(added_pieces))
-    
-    # корректируем единици измерения и зависимости от них
+
     if product_unit == 'кг':
-        product_qty = product_qty / (Decimal(1000))
+        product_qty = product_qty / Decimal(1000)
+        added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
     
     try:
-        await transaction_balance(outlet_id, product_id, product_qty)
+        await transaction_balance(outlet_id, product_id, product_qty, added_pieces)
         await callback.answer(text='Транзакция успешно создана', show_alert=True)
         await choose_product_balance_handler(callback, state)
     except:
