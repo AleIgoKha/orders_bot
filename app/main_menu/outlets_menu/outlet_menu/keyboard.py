@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # меню сессии
 outlet_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='🧰 Операции над товарами', callback_data='outlet:operations')],
-    [InlineKeyboardButton(text='📦 Управление запасами', callback_data='outlet:stock')],
+    [InlineKeyboardButton(text='📦 Запасы', callback_data='outlet:stock')],
     [InlineKeyboardButton(text='📈 Статистика', callback_data='outlet:statistics')],
     [InlineKeyboardButton(text='🛠 Настройки', callback_data='outlet:settings')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlets:choose_outlet')]

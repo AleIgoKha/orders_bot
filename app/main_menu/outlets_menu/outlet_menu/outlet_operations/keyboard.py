@@ -1,7 +1,9 @@
+import pytz
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from datetime import datetime
 
-from app.database.all_requests.transactions import was_balance_today
+from app.database.all_requests.transactions import were_stock_transactions
 from app.database.all_requests.stock import get_stock_product
 
 
@@ -212,7 +214,10 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
         
         text = f"{product_name} - {stock_qty} {product_unit}"
         
-        check_flag = await was_balance_today(stock_id)
+        date_time = datetime.now(pytz.timezone("Europe/Chisinau"))
+        transaction_types = ['balance']
+        
+        check_flag = await were_stock_transactions(stock_id, date_time, transaction_types)
         if check_flag:
             text += ' ✅'
         callback_data = f"outlet:balance:product_id_{current_item['product_id']}"

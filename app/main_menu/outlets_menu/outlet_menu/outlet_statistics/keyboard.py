@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import date, datetime
 from calendar import monthrange
 
-from app.database.all_requests.transactions import were_sellings
+from app.database.all_requests.transactions import were_outlet_transactions
 
 
 # Календарь для выбора даты
@@ -42,7 +42,7 @@ async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardM
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
                 day_text = str(day_counter)
-                sellings_check_flag = await were_sellings(outlet_id, datetime(year, month, day_counter))                 
+                sellings_check_flag = await were_outlet_transactions(outlet_id, datetime(year, month, day_counter), ['balance', 'selling'])                 
                 if day_counter == date.today().day and month == date.today().month and year == date.today().year:
                     day_text = '🌞'
                 # если за день были продающие транзакции, то ставим галочку возле даты

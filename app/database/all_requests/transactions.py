@@ -281,15 +281,16 @@ async def transaction_balance(session, outlet_id, product_id, product_qty, added
     session.add(transaction_data)
 
 
+# проверяет наличие указанных транзакций совершенных с запасами продукта за указанную дату
 @with_session()
-async def was_balance_today(session, stock_id):
-    start, end = get_chisinau_day_bounds(datetime.now(pytz.timezone("Europe/Chisinau")))
+async def were_stock_transactions(session, stock_id, date_time, transaction_types: list):
+    start, end = get_chisinau_day_bounds(date_time)
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0
     ).where(
         Transaction.stock_id == stock_id,
-        Transaction.transaction_type == 'balance',
+        Transaction.transaction_type.in_(transaction_types),
         Transaction.transaction_datetime >= start,
         Transaction.transaction_datetime < end
     )
@@ -298,16 +299,16 @@ async def was_balance_today(session, stock_id):
     return result
 
 
-# проверяет были ли продающие транзакции за день
+# проверяет наличие указанных транзакций совершенных в торговой точке за указанную дату
 @with_session()
-async def were_sellings(session, outlet_id, date_time):
+async def were_outlet_transactions(session, outlet_id, date_time, transaction_types: list):
     start, end = get_chisinau_day_bounds(date_time)
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0
     ).where(
         Transaction.outlet_id == outlet_id,
-        Transaction.transaction_type.in_(['balance', 'selling']),
+        Transaction.transaction_type.in_(transaction_types),
         Transaction.transaction_datetime >= start,
         Transaction.transaction_datetime < end
     )
