@@ -439,19 +439,24 @@ async def confirm_selling_handler(callback: CallbackQuery, state: FSMContext):
 # выбираем товар для фиксации остатка
 @outlet_operations.callback_query(F.data.startswith('outlet:balance:page_'))
 @outlet_operations.callback_query(F.data == 'outlet:balance')
+@outlet_operations.callback_query(F.data == 'outlet:balance:back')
 async def choose_product_balance_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
-    await state.update_data(added_pieces=[])
     
+    data = await state.get_data()
     if callback.data.startswith('outlet:balance:page_'):
         try:
             page = int(callback.data.split('_')[-1])
         except ValueError:
             return None
-    else:
+    elif callback.data == 'outlet:balance':
         page = 1
+    else:
+        page = data['page']
     
-    data = await state.get_data()
+    # сохраняем страницу для удобства при возвращении
+    await state.update_data(added_pieces=[], page=page)
+
     outlet_id = data['outlet_id']
     stock_data = await get_active_stock_products(outlet_id)
     # проверяем в первую очередь били ли транзакции за день с товаром, если не было то проверяем баланс для отображения

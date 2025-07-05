@@ -278,7 +278,7 @@ def balance_product(added_pieces, check_flag=False):
 def cancel_balance_product(product_id):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:balance:product_id_{product_id}'),
-        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data='outlet:balance')]
+        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data='outlet:balance:back')]
     ])
 
 

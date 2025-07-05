@@ -43,11 +43,10 @@ async def choose_product_outlet(stock_data: list, page: int = 1, products_per_pa
     
     product_keyboard.adjust(1)
     
-    additional_buttons = []
-    
-    additional_buttons.append(InlineKeyboardButton(text='➕ Добавить товар', callback_data='outlet:control:add_product'))
-    
-    product_keyboard.row(*additional_buttons)
+    if page == 1:
+        additional_buttons = []
+        additional_buttons.append(InlineKeyboardButton(text='➕ Добавить товар', callback_data='outlet:control:add_product'))
+        product_keyboard.row(*additional_buttons)
     
     
     navigation_buttons = []
@@ -131,7 +130,8 @@ add_product = InlineKeyboardMarkup(inline_keyboard=[
 # меню управления запасами продукта
 product_control_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='➕ Пополнить', callback_data='outlet:replenishment'),
-    InlineKeyboardButton(text='➖ Списать', callback_data='outlet:writeoff'),
+    InlineKeyboardButton(text='➖ Списать', callback_data='outlet:writeoff')],
+    [InlineKeyboardButton(text='📓 Транзакции', callback_data='outlet:stock:transactions'),
     InlineKeyboardButton(text='🗑 Удалить', callback_data='outlet:stock:delete')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:control:back')]
 ])
