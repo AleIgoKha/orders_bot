@@ -158,7 +158,6 @@ async def choose_product_control_handler(callback: CallbackQuery, state: FSMCont
     if callback.data.startswith('outlet:control:page_'):
         try:
             page = int(callback.data.split('_')[-1])
-            # сохраняем страницу для удобства при возвращении
         except ValueError:
             return None
     elif callback.data == 'outlet:control':
@@ -166,6 +165,7 @@ async def choose_product_control_handler(callback: CallbackQuery, state: FSMCont
     else:
         page = data['page']
         
+    # сохраняем страницу для удобства при возвращении
     await state.update_data(page=page)
     
     outlet_id = data['outlet_id']
@@ -270,6 +270,9 @@ async def product_control_handler(callback: CallbackQuery, state: FSMContext):
                             stock_id=stock_id,
                             product_name=product_name,
                             added_pieces=[])
+    
+    if product_unit == 'шт.':
+        stock_qty = int(stock_qty)
 
     text = '⚙️ <b>МЕНЮ УПРАВЛЕНИЯ ТОВАРОМ</b>\n\n' \
             f'Название товара - <b>{product_name}</b>\n' \
