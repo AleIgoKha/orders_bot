@@ -111,7 +111,7 @@ async def writeoff_text(outlet_id, product_id, added_pieces):
             f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
             'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n'
     
-    return text, str(stock_qty), product_unit
+    return text
 
 
 # функция для формирования сообщения меню запасов
@@ -150,23 +150,29 @@ async def stock_menu_handler(callback: CallbackQuery, state: FSMContext):
 # выбор продукта для выполнения операции над ним
 @stock_menu.callback_query(F.data.startswith('outlet:control:page_'))
 @stock_menu.callback_query(F.data == 'outlet:control')
+@stock_menu.callback_query(F.data == 'outlet:control:back')
 async def choose_product_control_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     
+    data = await state.get_data()
     if callback.data.startswith('outlet:control:page_'):
         try:
             page = int(callback.data.split('_')[-1])
+            # сохраняем страницу для удобства при возвращении
         except ValueError:
             return None
-    else:
+    elif callback.data == 'outlet:control':
         page = 1
+    else:
+        page = data['page']
+        
+    await state.update_data(page=page)
     
-    data = await state.get_data()
     outlet_id = data['outlet_id']
     stock_data = await get_active_stock_products(outlet_id)
     
     await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ УПРАВЛЕНИЯ</b>',
-                                     reply_markup=kb.choose_product_outlet(stock_data=stock_data, page=page),
+                                     reply_markup=await kb.choose_product_outlet(stock_data=stock_data, page=page),
                                      parse_mode='HTML')
 
 
@@ -226,10 +232,10 @@ async def confirm_add_product_handler(callback: CallbackQuery, state: FSMContext
     
     try:
         await add_stock(outlet_id, product_id)
-        await callback.answer(text='Продукт успешно добавлен в запасы')
+        await callback.answer(text='Продукт успешно добавлен в запасы', show_alert=True)
         await choose_add_product_handler(callback, state)
     except:
-        await callback.answer(text='Невозможно создать транзакцию')
+        await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
 
 # меню управления товаром
@@ -278,11 +284,18 @@ async def product_control_handler(callback: CallbackQuery, state: FSMContext):
 
 
 # Пополнение запасов продукта
-@stock_menu.callback_query(F.data =='outlet:replenishment')
+@stock_menu.callback_query(F.data == 'outlet:replenishment')
 async def product_replenishment_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     
     data = await state.get_data()
+    # проверяем если пришли от вызова функции
+    if callback.data == 'outlet:replenishment':
+        operation = callback.data.split(':')[-1]
+        await state.update_data(operation=operation)
+    else:
+        operation = data['operation']
+    
     product_id = data['product_id']
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
@@ -290,8 +303,8 @@ async def product_replenishment_handler(callback: CallbackQuery, state: FSMConte
     text = await replenishment_text(outlet_id, product_id, added_pieces)
     
     await callback.message.edit_text(text=text,
-                                        reply_markup=kb.replenish_product(added_pieces),
-                                        parse_mode='HTML')
+                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                    parse_mode='HTML')
     
     await state.set_state(Stock.replenishment)
 
@@ -308,9 +321,8 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
     chat_id = data['chat_id']
     message_id = data['message_id']
     outlet_id = data['outlet_id']
-    product_unit = data['product_unit']
     added_pieces = data['added_pieces']
-    stock_qty = data['stock_qty']
+    operation = data['operation']
 
     text = await replenishment_text(outlet_id, product_id, added_pieces)
     
@@ -327,7 +339,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.replenish_product(added_pieces))
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
                 return None
             except TelegramBadRequest:
                 return None
@@ -340,7 +352,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
                                                 message_id=message_id,
                                                 text=text,
                                                 parse_mode='HTML',
-                                                reply_markup=kb.replenish_product(added_pieces))
+                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
             return None
         except TelegramBadRequest:
             return None
@@ -350,51 +362,14 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
     await state.update_data(added_pieces=added_pieces)
     
     text = await replenishment_text(outlet_id, product_id, added_pieces)
-    await state.update_data(stock_qty=stock_qty, product_unit=product_unit)
     
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.replenish_product(added_pieces),
+                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
                                         parse_mode='HTML')
     
     await state.set_state(Stock.replenishment)
-
-
-# даем выбор куска для его изменения
-@stock_menu.callback_query(F.data.startswith('outlet:replenishment:correct_piece:piece_id_'))
-@stock_menu.callback_query(F.data.startswith('outlet:replenishment:correct_piece:page_'))
-@stock_menu.callback_query(F.data == 'outlet:replenishment:correct_piece')
-async def choose_balance_replenishment_handler(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(None)
-    # удаляем из списка кусков
-    if callback.data.startswith('outlet:replenishment:correct_piece:piece_id_'):
-        piece_id = int(callback.data.split('_')[-1])
-        data = await state.get_data()
-        added_pieces = data['added_pieces']
-        del added_pieces[piece_id]
-        await state.update_data(added_pieces=added_pieces)
-        
-    data = await state.get_data()
-    added_pieces = data['added_pieces']
-    product_id = data['product_id']
-    
-    if callback.data.startswith('outlet:replenishment:correct_piece:page_'):
-        try:
-            page = int(callback.data.split('_')[-1])
-        except ValueError:
-            return None
-    else:
-        page = 1
-
-    if len(added_pieces) != 0:
-        await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ КУСОК ТОВАРА ДЛЯ УДАЛЕНИЯ</b>',
-                                        reply_markup=kb.choose_replenishment_product_correct_piece(product_id=product_id,
-                                                                                                    added_pieces=added_pieces,
-                                                                                                    page=page),
-                                        parse_mode='HTML')
-    else:
-        await product_replenishment_handler(callback, state)
 
     
 # просим подтверждения пополнения
@@ -432,7 +407,7 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_replenish(outlet_id, product_id, product_qty, added_pieces)
-        await callback.answer(text='Запасы продукта успешно пополнены')
+        await callback.answer(text='Запасы продукта успешно пополнены', show_alert=True)
         await product_control_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
@@ -444,7 +419,7 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
 @stock_menu.callback_query(F.data == 'outlet:replenishment:cancel')
 async def cancel_replenishment_product_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
-    print('here')
+    
     data = await state.get_data()
     product_id = data['product_id']
     
@@ -452,55 +427,35 @@ async def cancel_replenishment_product_handler(callback: CallbackQuery, state: F
                                             'Несохраненные данные будут утеряны.</b>',
                                             parse_mode='HTML',
                                             reply_markup=kb.cancel_replenishment_product(product_id))
-
-
-# инициируем списание товара
-@stock_menu.callback_query(F.data == 'outlet:writeoff')
-@stock_menu.callback_query(F.data.startswith('outlet:writeoff:page_'))
-async def choose_product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
-    await state.set_state(None)
-    await state.update_data(added_pieces=[])
-    
-    if callback.data.startswith('outlet:writeoff:page_'):
-        try:
-            page = int(callback.data.split('_')[-1])
-        except ValueError:
-            return None
-    else:
-        page = 1
-    
-    data = await state.get_data()
-    outlet_id = data['outlet_id']
-    stock_data = await get_active_stock_products(outlet_id)
-    
-    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ СПИСАНИЯ</b>',
-                                     reply_markup=kb.choose_product_writeoff(stock_data=stock_data, page=page),
-                                     parse_mode='HTML')
     
     
 # запрашиваем количество товара для списания
-@stock_menu.callback_query(F.data.startswith('outlet:writeoff:product_id_'))
+@stock_menu.callback_query(F.data == 'outlet:writeoff')
 async def product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     
     data = await state.get_data()
-    # сохранение данных товара если пришли по колбэку
-    if callback.data.startswith('outlet:writeoff:product_id_'):
-        product_id = int(callback.data.split('_')[-1])
-        await state.update_data(product_id=product_id)
-    # если пришли по вызову функции
+    # проверяем если пришли от вызова функции
+    if callback.data == 'outlet:writeoff':
+        operation = callback.data.split(':')[-1]
+        await state.update_data(operation=operation)
     else:
-        product_id = data['product_id']
+        operation = data['operation']
     
+    product_id = data['product_id']
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
+    stock_qty = Decimal(data['stock_qty'])
     
-    text, stock_qty, product_unit = await writeoff_text(outlet_id, product_id, added_pieces)
-    await state.update_data(stock_qty=stock_qty, product_unit=product_unit)
-
+    if stock_qty == Decimal(0):
+        await callback.answer(text='У товара нет запасов', show_alert=True)
+        return None
+    
+    text = await writeoff_text(outlet_id, product_id, added_pieces)
+    
     await callback.message.edit_text(text=text,
-                                    reply_markup=kb.writeoff_product(added_pieces),
-                                    parse_mode='HTML')
+                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                        parse_mode='HTML')
     
     await state.set_state(Stock.writeoff)
 
@@ -519,99 +474,82 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
     stock_qty = Decimal(data['stock_qty'])
     product_unit = data['product_unit']
     added_pieces = data['added_pieces']
+    operation = data['operation']
     
     if product_unit == 'кг':
         stock_qty = stock_qty * Decimal(1000)
     
-    stock_data = await get_stock_product(outlet_id, product_id)
-    product_name = stock_data['product_name']
+    text = await writeoff_text(outlet_id, product_id, added_pieces)
     
-    text = (await writeoff_text(outlet_id, product_id, added_pieces))[0]
-    
-    if message.text.lower().strip() == 'удалить':
-        # создаем транзакцию по списанию всех запасов товара и его удаления из торговой точки
-        if product_unit == 'кг':
-            product_unit = product_unit[-1]
-        outlet_data = await get_outlet(outlet_id)
-        outlet_name = outlet_data['outlet_name']
-        await message.bot.edit_message_text(chat_id=chat_id,
-                                    message_id=message_id,
-                                    text=f'Будет выполнено списание товара <b>{product_name}</b> на <b>{int(stock_qty)} {product_unit}</b>'\
-                                        f' с последующим его удалением из торговой точки <b>{outlet_name}</b>',
-                                    reply_markup=kb.confirm_delete,
-                                    parse_mode='HTML')
-    # если не удаляем, то списываем
-    else:
-        # Проверяем на формат введенного количества товара
-        try:
-            product_qty = Decimal(message.text.replace(',', '.'))
-            
-            total_qty = product_qty + Decimal(sum(added_pieces))
-            
-            if product_qty <= 0:
-                try:
-                    await state.set_state(Stock.writeoff)
-                    warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ИЛИ РАВНО НУЛЮ</b>\n\n'
-                    text = warning_text + text
-                    await message.bot.edit_message_text(chat_id=chat_id,
-                                                        message_id=message_id,
-                                                        text=text,
-                                                        parse_mode='HTML',
-                                                        reply_markup=kb.writeoff_product(added_pieces))
-                    return None
-                except TelegramBadRequest:
-                    return None
-            elif stock_qty - total_qty < 0:
-                try:
-                    await state.set_state(Stock.writeoff)
-                    warning_text = '❗<b>КОЛИЧЕСТВО ДЛЯ СПИСАНИЯ НЕ МОЖЕТ БЫТЬ БОЛЬШЕ ЗАПАСА</b>\n\n'
-                    text = warning_text + text
-                    await message.bot.edit_message_text(chat_id=chat_id,
-                                                        message_id=message_id,
-                                                        text=text,
-                                                        parse_mode='HTML',
-                                                        reply_markup=kb.writeoff_product(added_pieces))
-                    return None
-                except TelegramBadRequest:
-                    return None
-        except:
+    # Проверяем на формат введенного количества товара
+    try:
+        product_qty = Decimal(message.text.replace(',', '.'))
+        
+        total_qty = product_qty + Decimal(sum(added_pieces))
+        
+        if product_qty <= 0:
             try:
                 await state.set_state(Stock.writeoff)
-                warning_text = '❗<b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b>\n\n'
+                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ИЛИ РАВНО НУЛЮ</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.writeoff_product(added_pieces))
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
                 return None
             except TelegramBadRequest:
                 return None
+        elif stock_qty - total_qty < 0:
+            try:
+                await state.set_state(Stock.writeoff)
+                warning_text = '❗<b>КОЛИЧЕСТВО ДЛЯ СПИСАНИЯ НЕ МОЖЕТ БЫТЬ БОЛЬШЕ ЗАПАСА</b>\n\n'
+                text = warning_text + text
+                await message.bot.edit_message_text(chat_id=chat_id,
+                                                    message_id=message_id,
+                                                    text=text,
+                                                    parse_mode='HTML',
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                return None
+            except TelegramBadRequest:
+                return None
+    except:
+        try:
+            await state.set_state(Stock.writeoff)
+            warning_text = '❗<b>НЕВЕРНЫЙ ФОРМАТ ВВОДА ДАННЫХ!</b>\n\n'
+            text = warning_text + text
+            await message.bot.edit_message_text(chat_id=chat_id,
+                                                message_id=message_id,
+                                                text=text,
+                                                parse_mode='HTML',
+                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+            return None
+        except TelegramBadRequest:
+            return None
 
-        # добавляем новый кусочек в список кусков
-        added_pieces.append(int(product_qty))
-        await state.update_data(added_pieces=added_pieces)
-        
-        text, stock_qty, product_unit = await writeoff_text(outlet_id, product_id, added_pieces)
-        await state.update_data(stock_qty=stock_qty, product_unit=product_unit)
-        
-        await message.bot.edit_message_text(chat_id=chat_id,
-                                            message_id=message_id,
-                                            text=text,
-                                            reply_markup=kb.writeoff_product(added_pieces),
-                                            parse_mode='HTML')
-        
-        await state.set_state(Stock.writeoff)
+    # добавляем новый кусочек в список кусков
+    added_pieces.append(int(product_qty))
+    await state.update_data(added_pieces=added_pieces)
+    
+    text = await writeoff_text(outlet_id, product_id, added_pieces)
+    
+    await message.bot.edit_message_text(chat_id=chat_id,
+                                        message_id=message_id,
+                                        text=text,
+                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                        parse_mode='HTML')
+    
+    await state.set_state(Stock.writeoff)
 
 
 # даем выбор куска для его изменения в списании
-@stock_menu.callback_query(F.data.startswith('outlet:writeoff:correct_piece:piece_id_'))
-@stock_menu.callback_query(F.data.startswith('outlet:writeoff:correct_piece:page_'))
-@stock_menu.callback_query(F.data == 'outlet:writeoff:correct_piece')
-async def correct_piece_writeoff_handler(callback: CallbackQuery, state: FSMContext):
+@stock_menu.callback_query(F.data.startswith('outlet:control:correct_piece:piece_id_'))
+@stock_menu.callback_query(F.data.startswith('outlet:control:correct_piece:page_'))
+@stock_menu.callback_query(F.data == 'outlet:control:correct_piece')
+async def correct_piece_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     # удаляем из списка кусков
-    if callback.data.startswith('outlet:writeoff:correct_piece:piece_id_'):
+    if callback.data.startswith('outlet:control:correct_piece:piece_id_'):
         piece_id = int(callback.data.split('_')[-1])
         data = await state.get_data()
         added_pieces = data['added_pieces']
@@ -620,9 +558,9 @@ async def correct_piece_writeoff_handler(callback: CallbackQuery, state: FSMCont
         
     data = await state.get_data()
     added_pieces = data['added_pieces']
-    product_id = data['product_id']
+    operation = data['operation']
     
-    if callback.data.startswith('outlet:writeoff:correct_piece:page_'):
+    if callback.data.startswith('outlet:control:correct_piece:page_'):
         try:
             page = int(callback.data.split('_')[-1])
         except ValueError:
@@ -632,12 +570,14 @@ async def correct_piece_writeoff_handler(callback: CallbackQuery, state: FSMCont
 
     if len(added_pieces) != 0:
         await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ КУСОК ТОВАРА ДЛЯ УДАЛЕНИЯ</b>',
-                                        reply_markup=kb.choose_writeoff_product_correct_piece(product_id=product_id,
-                                                                                                    added_pieces=added_pieces,
-                                                                                                    page=page),
+                                        reply_markup=kb.choose_correct_piece(operation=operation,
+                                                                             added_pieces=added_pieces,
+                                                                             page=page),
                                         parse_mode='HTML')
-    else:
+    elif operation == 'writeoff':
         await product_writeoff_handler(callback, state)
+    elif operation == 'replenishment':
+        await product_replenishment_handler(callback, state)
 
     
 # просим подтверждения списания
@@ -657,7 +597,7 @@ async def calculate_replenishment_handler(callback: CallbackQuery, state: FSMCon
         product_unit = product_unit[-1]
     
     await callback.message.edit_text(text=f'Будет выполнено списание товара <b>{product_name}</b> на <b>{product_qty} {product_unit}</b>',
-                                        reply_markup=kb.confirm_writeoff_product(product_id),
+                                        reply_markup=kb.confirm_writeoff_product,
                                         parse_mode='HTML')
 
 
@@ -678,8 +618,8 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_writeoff(outlet_id, product_id, product_qty, added_pieces)
-        await callback.answer(text='Запасы продукта успешно списаны')
-        await choose_product_writeoff_handler(callback, state)
+        await callback.answer(text='Запасы продукта успешно списаны', show_alert=True)
+        await product_control_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
@@ -698,6 +638,35 @@ async def cancel_writeoff_handler(callback: CallbackQuery, state: FSMContext):
                                             reply_markup=kb.cancel_writeoff_product(product_id))
 
 
+# инициируем удаление товара из торговой точки
+@stock_menu.callback_query(F.data == 'outlet:stock:delete')
+async def delete_stock_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    
+    data = await state.get_data()
+    
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_data = await get_stock_product(outlet_id, product_id)
+    product_name = stock_data['product_name']
+    stock_qty = stock_data['stock_qty']
+    product_unit = data['product_unit']
+    
+    if stock_qty > 0:
+        await callback.answer(text='Невозможно удалить товар с запасами', show_alert=True)
+        return None
+    
+    if product_unit == 'кг':
+        product_unit = product_unit[-1]
+        
+    outlet_data = await get_outlet(outlet_id)
+    outlet_name = outlet_data['outlet_name']
+    await callback.message.edit_text(text=f'Товар <b>{product_name}</b> будет удален из торговой точки <b>{outlet_name}</b>',
+                                    reply_markup=kb.confirm_delete(product_id),
+                                    parse_mode='HTML')
+
+
 # подтверждение удаления товара из запасов
 @stock_menu.callback_query(F.data == 'outlet:stock:delete:confirm')
 async def confirm_stock_delete_handler(callback: CallbackQuery, state: FSMContext):
@@ -708,7 +677,7 @@ async def confirm_stock_delete_handler(callback: CallbackQuery, state: FSMContex
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
         await transaction_delete_product(outlet_id, product_id)
-        await callback.answer(text='Продукт успешно удален из запасов торговой точки')
-        await choose_product_writeoff_handler(callback, state)
+        await callback.answer(text='Продукт успешно удален из торговой точки', show_alert=True)
+        await choose_product_control_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)

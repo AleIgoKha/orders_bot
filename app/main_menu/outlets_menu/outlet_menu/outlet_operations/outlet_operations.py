@@ -9,7 +9,7 @@ import pytz
 import app.main_menu.outlets_menu.outlet_menu.outlet_operations.keyboard as kb
 from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling, was_balance_today
+from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling, were_stock_transactions
 from app.database.all_requests.outlet import get_outlet
 from app.com_func import represent_utc_3
 
@@ -454,7 +454,12 @@ async def choose_product_balance_handler(callback: CallbackQuery, state: FSMCont
     data = await state.get_data()
     outlet_id = data['outlet_id']
     stock_data = await get_active_stock_products(outlet_id)
-    stock_data = [stock for stock in stock_data if stock['stock_qty'] != 0]
+    # проверяем в первую очередь били ли транзакции за день с товаром, если не было то проверяем баланс для отображения
+    stock_data = [stock for stock in stock_data if await were_stock_transactions(stock['stock_id'],
+                                                                                 datetime.now(pytz.timezone("Europe/Chisinau")),
+                                                                                 ['balance'])
+                                                or  stock['stock_qty'] != 0
+                          ]
     
     await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ТОВАР ДЛЯ УКАЗАНИЯ ОСТАТКА</b>',
                                      reply_markup=await kb.choose_product_balance(stock_data=stock_data, page=page),
@@ -483,7 +488,9 @@ async def product_balance_handler(callback: CallbackQuery, state: FSMContext):
     # извлекаем id запасов
     stock_product_data = await get_stock_product(outlet_id, product_id)
     stock_id = stock_product_data['stock_id']
-    check_flag = await was_balance_today(stock_id)
+    date_time = datetime.now(pytz.timezone("Europe/Chisinau"))
+    transaction_types = ['balance']
+    check_flag = await were_stock_transactions(stock_id, date_time, transaction_types)
     
     # если транзакция уже была за текущий день, то выводим информацию о ней
     if check_flag:
