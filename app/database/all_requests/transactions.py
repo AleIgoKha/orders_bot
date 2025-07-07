@@ -1,6 +1,6 @@
 from functools import wraps
 from contextlib import asynccontextmanager
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, update, delete, func, desc
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
@@ -67,7 +67,9 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
             'transaction_product_name': last_transaction.transaction_product_name,
             'product_qty': last_transaction.product_qty,
             'transaction_product_price': last_transaction.transaction_product_price,
-            'balance_after': last_transaction.balance_after
+            'balance_after': last_transaction.balance_after,
+            'transaction_info': last_transaction.transaction_info,
+            'transaction_note': last_transaction.transaction_note
             }
     else:
         last_transaction_data = None
@@ -317,6 +319,7 @@ async def were_outlet_transactions(session, outlet_id, date_time, transaction_ty
     return result
 
 
+# откат транзакции продажи
 @with_session(commit=True)
 async def rollback_selling(session, transaction_id, stock_id):
     
@@ -335,8 +338,62 @@ async def rollback_selling(session, transaction_id, stock_id):
     
     await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
     
-    
-    
 
-# переделать все на возвращение словаря и одиночных значений вместо возвращения ORM объектов (хотябы новые)
-# переделать мои двойные запросы на атомарные
+# информация о транзакциях товара в торговой точке
+@with_session()
+async def transactions_info(session, outlet_id, stock_id):
+    
+    stmt = select(Transaction) \
+            .where(Transaction.outlet_id == outlet_id,
+                   Transaction.stock_id == stock_id) \
+            .order_by(desc(Transaction.transaction_datetime))
+    
+    transactions = await session.scalars(stmt)
+    
+    if transactions is not None:
+        transactions_data = [{
+            'transaction_id': transaction.transaction_id,
+            'outlet_id': transaction.outlet_id,
+            'stock_id': transaction.stock_id,
+            'transaction_datetime': transaction.transaction_datetime,
+            'transaction_type': transaction.transaction_type,
+            'transaction_product_name': transaction.transaction_product_name,
+            'product_qty': transaction.product_qty,
+            'transaction_product_price': transaction.transaction_product_price,
+            'balance_after': transaction.balance_after,
+            'transaction_info': transaction.transaction_info,
+            'transaction_note': transaction.transaction_note
+            } for transaction in transactions]
+    else:
+        transactions_data = None
+    
+    return transactions_data
+
+
+# информация об одной транзакции
+@with_session()
+async def transaction_info(session, transaction_id):
+    
+    stmt = select(Transaction) \
+            .where(Transaction.transaction_id == transaction_id)
+    
+    transaction = await session.scalar(stmt)
+    
+    if transaction is not None:
+        transaction_data = {
+            'transaction_id': transaction.transaction_id,
+            'outlet_id': transaction.outlet_id,
+            'stock_id': transaction.stock_id,
+            'transaction_datetime': transaction.transaction_datetime,
+            'transaction_type': transaction.transaction_type,
+            'transaction_product_name': transaction.transaction_product_name,
+            'product_qty': transaction.product_qty,
+            'transaction_product_price': transaction.transaction_product_price,
+            'balance_after': transaction.balance_after,
+            'transaction_info': transaction.transaction_info,
+            'transaction_note': transaction.transaction_note
+            }
+    else:
+        transaction_data = None
+    
+    return transaction_data
