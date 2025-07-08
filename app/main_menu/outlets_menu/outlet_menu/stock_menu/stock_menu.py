@@ -8,8 +8,9 @@ import app.main_menu.outlets_menu.outlet_menu.stock_menu.keyboard as kb
 from app.states import Stock
 from app.database.requests import get_product
 from app.database.all_requests.stock import get_stock_product, get_active_stock_products, add_stock, get_out_stock_products
-from app.database.all_requests.transactions import transaction_writeoff, transaction_replenish, transaction_delete_product
+from app.database.all_requests.transactions import transaction_writeoff, transaction_replenish, transaction_delete_product, transactions_info, transaction_info
 from app.database.all_requests.outlet import get_outlet
+from app.com_func import represent_utc_3
 
 
 stock_menu = Router()
@@ -684,3 +685,92 @@ async def confirm_stock_delete_handler(callback: CallbackQuery, state: FSMContex
         await choose_product_control_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
+
+
+# история транзакций товара
+@stock_menu.callback_query(F.data.startswith('outlet:control:transactions:page_'))
+@stock_menu.callback_query(F.data == 'outlet:control:transactions')
+@stock_menu.callback_query(F.data == 'outlet:control:transactions:back')
+async def choose_transaction_product_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
+    
+    data = await state.get_data()
+    if callback.data.startswith('outlet:control:transactions:page_'):
+        try:
+            page = int(callback.data.split('_')[-1])
+        except ValueError:
+            return None
+    elif callback.data == 'outlet:control:transactions':
+        page = 1
+    else:
+        page = data['page']
+        
+    # сохраняем страницу для удобства при возвращении
+    await state.update_data(page=page)
+    
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_data = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_data['stock_id']
+    product_unit = stock_data['product_unit']
+    
+    transactions_data = await transactions_info(outlet_id, stock_id)
+    
+    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ТРАНЗАКЦИЮ</b>',
+                                     reply_markup=kb.choose_transaction(transactions_data, product_unit, product_id, page=page),
+                                     parse_mode='HTML')
+    
+
+# выводим информацию о транзакции товара торговой точки
+@stock_menu.callback_query(F.data.startswith('outlet:control:transactions:transaction_id_'))
+async def transaction_product_handler(callback: CallbackQuery, state: FSMContext):
+    
+    transaction_id = int(callback.data.split('_')[-1])
+    
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    
+    product_id = data['product_id']
+    stock_data = await get_stock_product(outlet_id, product_id)
+    product_unit = stock_data['product_unit']
+    
+    transaction = await transaction_info(transaction_id)
+    
+    transaction_product_name = transaction['transaction_product_name']
+    transaction_datetime = represent_utc_3(transaction['transaction_datetime']).strftime('%H:%M %d-%m-%Y')
+    transaction_type_labels = {
+        'balance': 'Продажа',
+        'selling': 'Продажа',
+        'replenishment': 'Пополнение',
+        'writeoff': 'Списание'
+    }
+    
+    transaction_type = transaction_type_labels[transaction['transaction_type']]
+    product_qty = transaction['product_qty']
+    
+    if product_unit == 'кг':
+        product_qty = product_qty * Decimal(1000)
+        product_unit = 'г'
+        
+    transaction_id = transaction['transaction_id']
+    transaction_parts = transaction['transaction_info']
+    
+    text = f'Информация о транзакции <b>{transaction_id}</b>:\n\n' \
+            f'Товар - <b>{transaction_product_name}</b>\n\n' \
+            f'Время и дата проведения - <b>{transaction_datetime}</b>\n\n' \
+            f'Тип транзакции - <b>{transaction_type}</b>\n\n' \
+            f'Количество - <b>{round(product_qty)} {product_unit}</b>\n\n'
+                
+    if not transaction_parts is None and len(transaction_parts) > 1:
+        text += f'Части товара:\n'
+        for part in transaction_parts:
+            if product_unit != 'шт.':
+                part = part * Decimal(1000)
+            
+            text += f'- <b>{round(part)} {product_unit}</b>\n'
+        
+    
+    await callback.message.edit_text(text=text,
+                                     parse_mode='HTML',
+                                     reply_markup=kb.transaction_menu)
