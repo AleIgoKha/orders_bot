@@ -117,7 +117,7 @@ async def writeoff_text(outlet_id, product_id, added_pieces):
 
 # функция для формирования сообщения меню запасов
 def stock_list_text(stock_products_data):
-    text = '📦 <b>УПРАВЛЕНИЕ ЗАПАСАМИ</b>\n\n'
+    text = '📦 <b>ЗАПАСЫ</b>\n\n'
     
     for stock_product_data in stock_products_data:
         product_name = stock_product_data['product_name']
@@ -740,30 +740,41 @@ async def transaction_product_handler(callback: CallbackQuery, state: FSMContext
     transaction_product_name = transaction['transaction_product_name']
     transaction_datetime = represent_utc_3(transaction['transaction_datetime']).strftime('%H:%M %d-%m-%Y')
     transaction_type_labels = {
-        'balance': 'Продажа',
-        'selling': 'Продажа',
-        'replenishment': 'Пополнение',
-        'writeoff': 'Списание'
+        'balance': ['Продажа (ост.)', 'Рассчетное количество проданного товара', 'Части товара в остатке:'],
+        'selling': ['Продажа', 'Количество проданного товара',  'Части товара проданного:'],
+        'replenishment': ['Пополнение', 'Количество товара в пополнение',  'Части товара в пополнении:'],
+        'writeoff': ['Списание', 'Количество товара в списании',  'Части товара в списании:']
     }
     
-    transaction_type = transaction_type_labels[transaction['transaction_type']]
+    try:
+        transaction_type = transaction_type_labels[transaction['transaction_type']][0]
+        transaction_qty_phrase = transaction_type_labels[transaction['transaction_type']][1]
+        transaction_parts_phrase = transaction_type_labels[transaction['transaction_type']][2]
+    except KeyError:
+        transaction_type = None
+        transaction_qty_phrase = 'Количество'
+        transaction_parts_phrase = 'Части товара:'
+    
     product_qty = transaction['product_qty']
+    balance_after = transaction['balance_after']
     
     if product_unit == 'кг':
         product_qty = product_qty * Decimal(1000)
+        balance_after = balance_after * Decimal(1000)
         product_unit = 'г'
         
     transaction_id = transaction['transaction_id']
     transaction_parts = transaction['transaction_info']
     
-    text = f'Информация о транзакции <b>{transaction_id}</b>:\n\n' \
-            f'Товар - <b>{transaction_product_name}</b>\n\n' \
-            f'Время и дата проведения - <b>{transaction_datetime}</b>\n\n' \
-            f'Тип транзакции - <b>{transaction_type}</b>\n\n' \
-            f'Количество - <b>{round(product_qty)} {product_unit}</b>\n\n'
+    text = f'<b>ТРАНЗАКЦИЯ №{transaction_id}</b>\n\n' \
+            f'Товар - <b>{transaction_product_name}</b>\n' \
+            f'Время и дата проведения - <b>{transaction_datetime}</b>\n' \
+            f'Тип транзакции - <b>{transaction_type}</b>\n' \
+            f'{transaction_qty_phrase} - <b>{round(product_qty)} {product_unit}</b>\n' \
+            f'Количество товара после транзакции - <b>{round(balance_after)} {product_unit}</b>\n' \
                 
     if not transaction_parts is None and len(transaction_parts) > 1:
-        text += f'Части товара:\n'
+        text += f'{transaction_parts_phrase}\n'
         for part in transaction_parts:
             if product_unit != 'шт.':
                 part = part * Decimal(1000)
