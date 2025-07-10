@@ -32,14 +32,24 @@ async def rollback_balance_text(outlet_id, product_id):
     if product_unit != 'кг':
         product_qty = int(product_qty)
         balance_after = int(balance_after)
+
+    transaction_parts = last_transaction_data['transaction_info']
+    
     
     text = f'<b>РАСЧЕТ ПРОДАЖ ПО ОСТАТКУ СЕГОДНЯ</b>\n\n' \
-        f'Информация о транзакции:\n' \
         f'Дата и время - <b>{transaction_datetime.strftime('%H:%M %d-%m-%Y')}</b>\n' \
         f'Название товара - <b>{product_name}</b>\n' \
         f'Запас до расчета остатка - <b>{product_qty + balance_after} {product_unit}</b>\n' \
         f'Новый указанный остаток - <b>{balance_after} {product_unit}</b>\n' \
-        f'Рассчетное количество проданного товара - <b>{product_qty} {product_unit}</b>\n\n'
+        f'Рассчетное количество проданного товара - <b>{product_qty} {product_unit}</b>\n'
+        
+    if not transaction_parts is None and len(transaction_parts) > 1:
+        text += f'Части товара в остатке:\n'
+        for part in transaction_parts:
+            if product_unit != 'шт.':
+                part = part * Decimal(1000)
+            
+            text += f'- <b>{round(part)} {product_unit}</b>\n'
         
     return text
 

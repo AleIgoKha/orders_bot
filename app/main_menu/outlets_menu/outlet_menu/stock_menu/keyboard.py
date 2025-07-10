@@ -249,13 +249,19 @@ def choose_transaction(transactions: list, product_unit: str, product_id: int, p
     
     for transaction in current_transactions:
         transaction_datetime = represent_utc_3(transaction['transaction_datetime']).strftime('%H:%M %d-%m-%Y')
+        
         transaction_type_labels = {
-            'balance': 'Продажа',
+            'balance': 'Продажа (ост.)',
             'selling': 'Продажа',
             'replenishment': 'Пополнение',
             'writeoff': 'Списание'
         }
-        transaction_type = transaction_type_labels[transaction['transaction_type']]
+        
+        try:
+            transaction_type = transaction_type_labels[transaction['transaction_type']]
+        except KeyError:
+            transaction_type = None
+            
         product_qty = transaction['product_qty']
         
         if product_unit == 'кг':
