@@ -9,7 +9,7 @@ from app.database.all_requests.stock import get_stock_product
 
 # Меню операций
 operations_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='💸 Расчет по продажам', callback_data='outlet:selling')],
+    # [InlineKeyboardButton(text='💸 Расчет по продажам', callback_data='outlet:selling')],
     [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data='outlet:balance')],
     # [InlineKeyboardButton(text='🐓 Возврат средств', callback_data='otlet:return')],
     # [InlineKeyboardButton(text='💰 Указать выручку', callback_data='otlet:revenue')], # эти две операции относятся к 
@@ -254,7 +254,7 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
 
 
 # для меню расчета по остатку
-def balance_product(added_pieces, check_flag=False):
+def balance_product(added_pieces, from_callback, check_flag=False):
     inline_keyboard = []
     upper_buttons = []
     lower_buttons = []
@@ -262,11 +262,15 @@ def balance_product(added_pieces, check_flag=False):
     if len(added_pieces) != 0:
         upper_buttons.append(InlineKeyboardButton(text='🗑 Удалить кусок', callback_data='outlet:balance:correct_piece'))
         lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data='outlet:balance:calculate'))
+        lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel'))
+    else:
+        if from_callback is None:
+            lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:balance:back'))
+        elif from_callback == 'outlet:control:transactions':
+            lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back'))
     
-    if check_flag:
+    if check_flag and from_callback in None:
         upper_buttons.append(InlineKeyboardButton(text='☠️ Откатить', callback_data='outlet:balance:rollback'))
-    
-    lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:balance:cancel'))
     
     inline_keyboard.append(upper_buttons)
     
@@ -275,10 +279,15 @@ def balance_product(added_pieces, check_flag=False):
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 # для меню расчета по остатку
-def cancel_balance_product(product_id):
+def cancel_balance_product(product_id, from_callback):
+    if from_callback is None:
+        callback_text = f'outlet:balance:back'
+    elif from_callback == 'outlet:control:transactions':
+        callback_text = f'outlet:control:transactions:back'
+    
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:balance:product_id_{product_id}'),
-        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data='outlet:balance:back')]
+        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data=callback_text)]
     ])
 
 

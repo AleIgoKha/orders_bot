@@ -60,6 +60,8 @@ class Item(StatesGroup):
     change_item_qty = State() # Количество при изменении веса товара в заказе
     item_qty = State() # Количество при добавлении нового товара в заказ
       
-    
 class Stats(StatesGroup):
     date = State()
+    
+class Transaction(StatesGroup):
+    time = State()

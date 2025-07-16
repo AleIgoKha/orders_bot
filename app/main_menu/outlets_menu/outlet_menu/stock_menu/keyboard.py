@@ -1,8 +1,9 @@
 import pytz
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
+from calendar import monthrange
 
 from app.database.all_requests.transactions import were_stock_transactions
 from app.com_func import represent_utc_3
@@ -140,17 +141,20 @@ product_control_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 
 # для меню пополнения
-def change_stock_qty_menu(operation, added_pieces, product_id):
+def change_stock_qty_menu(operation, added_pieces, product_id, from_callback):
     inline_keyboard = []
     upper_buttons = []
     lower_buttons = []
     
     if len(added_pieces) != 0:
         upper_buttons.append(InlineKeyboardButton(text='🗑 Удалить кусок', callback_data=f'outlet:control:correct_piece'))
-        lower_buttons.append(InlineKeyboardButton(text='🧮 Рассчитать', callback_data=f'outlet:{operation}:calculate'))
+        lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data=f'outlet:{operation}:calculate'))
         lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:{operation}:cancel'))
     else:
-        lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:product_id_{product_id}'))
+        if from_callback is None:
+            lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:product_id_{product_id}'))
+        elif from_callback == 'outlet:control:transactions':
+            lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back'))
     
     inline_keyboard.append(upper_buttons)
     
@@ -167,10 +171,16 @@ confirm_replenishment_product = InlineKeyboardMarkup(inline_keyboard=[
     
     
 # меню отмены пополнения запасов товара
-def cancel_replenishment_product(product_id):
+def cancel_replenishment_product(product_id, from_callback):
+    # в зависимости от того, из какого меню пришли
+    if from_callback is None:
+        callback_text = f'outlet:control:product_id_{product_id}'
+    elif from_callback == 'outlet:control:transactions':
+        callback_text = f'outlet:control:transactions:back'
+    
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data='outlet:replenishment'),
-        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data=f'outlet:control:product_id_{product_id}')]
+        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data=callback_text)]
     ])
 
 
@@ -189,10 +199,16 @@ confirm_writeoff_product = InlineKeyboardMarkup(inline_keyboard=[
     
     
 # меню отмены пополнения запасов товара
-def cancel_writeoff_product(product_id):
+def cancel_writeoff_product(product_id, from_callback):
+    # в зависимости от того, из какого меню пришли
+    if from_callback is None:
+        callback_text = f'outlet:control:product_id_{product_id}'
+    elif from_callback == 'outlet:control:transactions':
+        callback_text = f'outlet:control:transactions:back'
+    
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='◀️ Вернуться к операции', callback_data=f'outlet:writeoff'),
-        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data=f'outlet:control:product_id_{product_id}')]
+        InlineKeyboardButton(text='❌ Подтвердить выход', callback_data=callback_text)]
     ])
 
 
@@ -276,6 +292,10 @@ def choose_transaction(transactions: list, product_unit: str, product_id: int, p
     
     product_keyboard.adjust(1)
        
+    if page == 1:
+        additional_buttons = []
+        additional_buttons.append(InlineKeyboardButton(text='➕ Создать транзакцию', callback_data='outlet:control:transactions:new_transaction'))
+        product_keyboard.row(*additional_buttons)
     
     navigation_buttons = []
     
@@ -308,4 +328,79 @@ def choose_transaction(transactions: list, product_unit: str, product_id: int, p
 # меню транзакции
 transaction_menu = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='◀️ Назад', callback_data=f'outlet:control:transactions:back')]
+    ])
+
+
+# Календарь для выбора даты
+def transaction_calendar_keyboard(year: int, month: int) -> InlineKeyboardMarkup:
+    """
+    Creates an inline keyboard representing a calendar for the given year and month.
+    """
+    keyboard = []
+    months = {
+    1: "Январь",
+    2: "Февраль",
+    3: "Март",
+    4: "Апрель",
+    5: "Май",
+    6: "Июнь",
+    7: "Июль",
+    8: "Август",
+    9: "Сентябрь",
+    10: "Октябрь",
+    11: "Ноябрь",
+    12: "Декабрь"}
+    keyboard.append([InlineKeyboardButton(text=f'{year} {months[month]}', callback_data="ignore")])
+    days_of_week = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    keyboard.append([InlineKeyboardButton(text=day, callback_data="ignore") for day in days_of_week])
+
+    first_day = date(year, month, 1)
+    first_day_weekday = first_day.weekday()  # Monday is 0, Sunday is 6
+    days_in_month = monthrange(year, month)[1]
+    day_counter = 1
+
+    for week in range(6):  # Up to 6 weeks can be displayed
+        row = []
+        for day_of_week in range(7):
+            if week == 0 and day_of_week < first_day_weekday:
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
+            elif day_counter > days_in_month:
+                row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
+            else:
+                day_text = str(day_counter)
+          
+                if day_counter == date.today().day and month == date.today().month and year == date.today().year:
+                    day_text = '🌞'
+
+                callback_data = f"outlet:control:transactions:date:{year}:{month}:{day_counter}"
+                row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
+                day_counter += 1
+        keyboard.append(row)
+        if day_counter > days_in_month:
+            break
+
+    navigation_buttons = [
+        InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"outlet:control:transactions:month:prev:{year}:{month}"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="outlet:control:transactions:back"),
+        InlineKeyboardButton(text="➡️ Позднее", callback_data=f"outlet:control:transactions:month:next:{year}:{month}"),
+    ]
+    keyboard.append(navigation_buttons)
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+# отмена создания новой транзакции
+cancel_transaction_creation = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back')]
+])
+
+
+# выбираем вид транзакции
+def choose_transaction_type(product_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='➕ Пополнение', callback_data=f'outlet:replenishment')],
+        [InlineKeyboardButton(text='➖ Списание', callback_data=f'outlet:writeoff')],
+        [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data=f'outlet:balance:product_id_{product_id}')],
+        # [InlineKeyboardButton(text='💸 Расчет продажам', callback_data=f'outlet:control:transactions:back')],
+        [InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back')]
     ])
