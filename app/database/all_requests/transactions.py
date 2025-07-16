@@ -42,17 +42,15 @@ def with_session(commit: bool = False):
 
 # последняя транзакция с товаром торговой точки по типу транзакции
 @with_session()
-async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
+async def get_last_transaction(session, outlet_id, stock_id):
     
     max_datetime = select(func.max(Transaction.transaction_datetime)) \
                     .where(Transaction.outlet_id == outlet_id,
-                            Transaction.stock_id == stock_id,
-                            Transaction.transaction_type == transaction_type)
+                            Transaction.stock_id == stock_id)
     
     stmt = select(Transaction) \
             .where(Transaction.outlet_id == outlet_id,
                    Transaction.stock_id == stock_id,
-                   Transaction.transaction_type == transaction_type,
                    Transaction.transaction_datetime == max_datetime)
     
     last_transaction = await session.scalar(stmt)
@@ -79,7 +77,7 @@ async def get_last_transaction(session, outlet_id, stock_id, transaction_type):
 
 # проводим транзакцию пополнения товара
 @with_session(commit=True)
-async def transaction_replenish(session, outlet_id, product_id, product_qty, added_pieces: list=None):
+async def transaction_replenish(session, outlet_id, product_id, product_qty, added_pieces: list=None, transaction_datetime: datetime=None):
     if product_qty <= 0:
         raise ValueError("Replenishment quantity must be positive.")
     
@@ -101,6 +99,7 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty, add
     
     
     transaction_data = Transaction(
+        transaction_datetime=transaction_datetime,
         outlet_id=outlet_id,
         stock_id=stock_data.stock_id,
         transaction_type='replenishment',
@@ -118,7 +117,7 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty, add
 
 # проводим транзакцию списания товара
 @with_session(commit=True)
-async def transaction_writeoff(session, outlet_id, product_id, product_qty, added_pieces: list=None):
+async def transaction_writeoff(session, outlet_id, product_id, product_qty, added_pieces: list=None, transaction_datetime: datetime=None):
     if product_qty <= 0:
         raise ValueError("Replenishment quantity must be positive.")
     
@@ -142,6 +141,7 @@ async def transaction_writeoff(session, outlet_id, product_id, product_qty, adde
     stock_data.stock_qty = new_qty
 
     transaction_data = Transaction(
+        transaction_datetime=transaction_datetime,
         outlet_id=outlet_id,
         stock_id=stock_data.stock_id,
         transaction_type='writeoff',
@@ -244,7 +244,7 @@ async def transaction_selling(session, outlet_id, added_products):
 
 # проводим транзакцию продажи по балансу
 @with_session(commit=True)
-async def transaction_balance(session, outlet_id, product_id, product_qty, added_pieces: list=None):
+async def transaction_balance(session, outlet_id, product_id, product_qty, added_pieces: list=None, transaction_datetime: datetime=None):
     if product_qty < 0:
         raise ValueError("Replenishment quantity must be positive or zero.")
     
@@ -268,6 +268,7 @@ async def transaction_balance(session, outlet_id, product_id, product_qty, added
     stock_data.stock_qty = Decimal(product_qty)
     
     transaction_data = Transaction(
+        transaction_datetime=transaction_datetime,
         outlet_id=outlet_id,
         stock_id=stock_data.stock_id,
         transaction_type='balance',

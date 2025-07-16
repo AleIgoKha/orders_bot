@@ -1,16 +1,20 @@
+import pytz
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
+from datetime import datetime, date
+
 
 import app.main_menu.outlets_menu.outlet_menu.stock_menu.keyboard as kb
 from app.states import Stock
 from app.database.requests import get_product
 from app.database.all_requests.stock import get_stock_product, get_active_stock_products, add_stock, get_out_stock_products
-from app.database.all_requests.transactions import transaction_writeoff, transaction_replenish, transaction_delete_product, transactions_info, transaction_info
+from app.database.all_requests.transactions import transaction_writeoff, transaction_replenish, transaction_delete_product, transactions_info, transaction_info, get_last_transaction
 from app.database.all_requests.outlet import get_outlet
-from app.com_func import represent_utc_3
+from app.com_func import represent_utc_3, localize_user_input
+from app.states import Transaction
 
 
 stock_menu = Router()
@@ -35,20 +39,6 @@ async def replenishment_text(outlet_id, product_id, added_pieces):
         product_unit_amend = 'штуках'
         stock_qty = round(stock_qty)
         
-    # # последняя транзакция с товаром
-    # last_transaction_data = await get_last_transaction(outlet_id=outlet_id,
-    #                                                    stock_id=stock_id,
-    #                                                    transaction_type='replenishment')
-    # last_transaction_text = ''
-    # if last_transaction_data:
-    #     transaction_datetime = represent_utc_3(last_transaction_data['transaction_datetime']).strftime('в %H:%M %d-%m-%Y')
-    #     transaction_product_qty = last_transaction_data['product_qty']
-        
-    #     if product_unit != 'кг':
-    #         transaction_product_qty = round(transaction_product_qty)
-            
-    #     last_transaction_text = f'Последнее пополнение товара - <b>➕{transaction_product_qty} {product_unit} ({transaction_datetime})</b>\n'
-        
     # корректируем единици измерения и зависимости от них
     product_unit_amend = product_unit
     if product_unit == 'кг':
@@ -67,7 +57,7 @@ async def replenishment_text(outlet_id, product_id, added_pieces):
             added_pieces_text += f'<b>{added_piece} {product_unit_pieces}</b>\n'
         added_pieces_text += f'Итого к пополнению - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
         
-    text = '❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА</b>\n\n' \
+    text = '➕ <b>ПОПОЛНЕНИЕ</b>\n\n' \
             f'Вы пытаетесь пополнить запасы товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
             f'{added_pieces_text}' \
@@ -103,14 +93,13 @@ async def writeoff_text(outlet_id, product_id, added_pieces):
         added_pieces_text = '\nНа данный момент добавлены части товара размером:\n'
         for added_piece in added_pieces:
             added_pieces_text += f'<b>{added_piece} {product_unit_pieces}</b>\n'
-        added_pieces_text += f'Итого к пополнению - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
+        added_pieces_text += f'Итого к списанию - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
         
-    text = '❓ <b>УКАЖИТЕ КОЛИЧЕСТВО ПРОДУКТА ДЛЯ СПИСАНИЯ</b>\n\n' \
+    text = '➖ <b>СПИСАНИЕ</b>\n\n' \
             f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
             f'{added_pieces_text}' \
-            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>. ' \
-            'Для удаления товара введите <i>УДАЛИТЬ</i>.\n\n'
+            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>.'
     
     return text
 
@@ -156,6 +145,7 @@ async def choose_product_control_handler(callback: CallbackQuery, state: FSMCont
     await state.set_state(None)
     
     data = await state.get_data()
+    
     if callback.data.startswith('outlet:control:page_'):
         try:
             page = int(callback.data.split('_')[-1])
@@ -164,6 +154,20 @@ async def choose_product_control_handler(callback: CallbackQuery, state: FSMCont
     elif callback.data == 'outlet:control':
         page = 1
     else:
+        # обновляем данные контекста, избавляемся от лишнего
+        data = {
+            'outlet_id': data['outlet_id'],
+            'outlet_name': data['outlet_name'],
+            'outlet_descr': data['outlet_descr'],
+            'outlet_arch': data['outlet_arch'],
+            'message_id': data['message_id'],
+            'chat_id': data['chat_id'],
+            'page': data['page'],
+            }
+        await state.clear()
+        await state.update_data(data)
+        data = await state.get_data()
+        # Сохраняем страницу (лучше это не убирать отсюда)
         page = data['page']
         
     # сохраняем страницу для удобства при возвращении
@@ -238,7 +242,6 @@ async def confirm_add_product_handler(callback: CallbackQuery, state: FSMContext
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
-
 # меню управления товаром
 @stock_menu.callback_query(F.data.startswith('outlet:control:product_id_'))
 async def product_control_handler(callback: CallbackQuery, state: FSMContext):
@@ -270,7 +273,9 @@ async def product_control_handler(callback: CallbackQuery, state: FSMContext):
                             product_id=product_id,
                             stock_id=stock_id,
                             product_name=product_name,
-                            added_pieces=[])
+                            added_pieces=[], 
+                            transaction_datetime=None,
+                            from_callback=None)
     
     if product_unit == 'шт.':
         stock_qty = int(stock_qty)
@@ -303,11 +308,12 @@ async def product_replenishment_handler(callback: CallbackQuery, state: FSMConte
     product_id = data['product_id']
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
+    from_callback = data['from_callback']
     
     text = await replenishment_text(outlet_id, product_id, added_pieces)
     
     await callback.message.edit_text(text=text,
-                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback),
                                     parse_mode='HTML')
     
     await state.set_state(Stock.replenishment)
@@ -327,6 +333,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
     operation = data['operation']
+    from_callback = data['from_callback']
 
     text = await replenishment_text(outlet_id, product_id, added_pieces)
     
@@ -343,7 +350,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback))
                 return None
             except TelegramBadRequest:
                 return None
@@ -356,7 +363,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
                                                 message_id=message_id,
                                                 text=text,
                                                 parse_mode='HTML',
-                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback))
             return None
         except TelegramBadRequest:
             return None
@@ -370,7 +377,7 @@ async def product_replenishment_receiver_handler(message: Message, state: FSMCon
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback),
                                         parse_mode='HTML')
     
     await state.set_state(Stock.replenishment)
@@ -403,6 +410,11 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
     added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
     product_qty = sum(added_pieces)
     product_unit = data['product_unit']
+    transaction_datetime = data['transaction_datetime']
+    from_callback = data['from_callback']
+    
+    if transaction_datetime:
+        transaction_datetime = localize_user_input(datetime(**data['transaction_datetime']))
 
     if product_unit == 'кг':
         product_qty = product_qty / Decimal(1000)
@@ -410,13 +422,16 @@ async def confirm_replenishment_handler(callback: CallbackQuery, state: FSMConte
 
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
-        await transaction_replenish(outlet_id, product_id, product_qty, added_pieces)
+        await transaction_replenish(outlet_id, product_id, product_qty, added_pieces, transaction_datetime)
         await callback.answer(text='Запасы продукта успешно пополнены', show_alert=True)
-        await product_control_handler(callback, state)
+        if from_callback is None:
+            await choose_product_control_handler(callback, state)
+        elif from_callback == 'outlet:control:transactions':
+            await choose_transaction_product_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
-    
-    # переходив в меню пополнения
+        
+    await state.update_data(transaction_datetime=None)
 
 
 # меню отмены расчета баланса
@@ -426,11 +441,12 @@ async def cancel_replenishment_product_handler(callback: CallbackQuery, state: F
     
     data = await state.get_data()
     product_id = data['product_id']
+    from_callback = data['from_callback']
     
     await callback.message.edit_text(text='❗️ <b>Вы пытаетесь выйти из операции пополнения товара. '\
                                             'Несохраненные данные будут утеряны.</b>',
                                             parse_mode='HTML',
-                                            reply_markup=kb.cancel_replenishment_product(product_id))
+                                            reply_markup=kb.cancel_replenishment_product(product_id, from_callback))
     
     
 # запрашиваем количество товара для списания
@@ -450,6 +466,7 @@ async def product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
     stock_qty = Decimal(data['stock_qty'])
+    from_callback = data['from_callback']
     
     if stock_qty == Decimal(0):
         await callback.answer(text='У товара нет запасов', show_alert=True)
@@ -458,8 +475,8 @@ async def product_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     text = await writeoff_text(outlet_id, product_id, added_pieces)
     
     await callback.message.edit_text(text=text,
-                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
-                                        parse_mode='HTML')
+                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback),
+                                    parse_mode='HTML')
     
     await state.set_state(Stock.writeoff)
 
@@ -479,6 +496,7 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
     product_unit = data['product_unit']
     added_pieces = data['added_pieces']
     operation = data['operation']
+    from_callback = data['from_callback']
     
     if product_unit == 'кг':
         stock_qty = stock_qty * Decimal(1000)
@@ -500,7 +518,7 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback))
                 return None
             except TelegramBadRequest:
                 return None
@@ -513,7 +531,7 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                                                    reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback))
                 return None
             except TelegramBadRequest:
                 return None
@@ -526,7 +544,7 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
                                                 message_id=message_id,
                                                 text=text,
                                                 parse_mode='HTML',
-                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id))
+                                                reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback))
             return None
         except TelegramBadRequest:
             return None
@@ -540,7 +558,7 @@ async def product_writeoff_receiver_handler(message: Message, state: FSMContext)
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id),
+                                        reply_markup=kb.change_stock_qty_menu(operation, added_pieces, product_id, from_callback),
                                         parse_mode='HTML')
     
     await state.set_state(Stock.writeoff)
@@ -614,6 +632,12 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
     product_qty = sum(added_pieces)
     product_unit = data['product_unit']
+    from_callback = data['from_callback']
+    
+    transaction_datetime = data['transaction_datetime']
+    
+    if transaction_datetime:
+        transaction_datetime = localize_user_input(datetime(**data['transaction_datetime']))
 
     if product_unit == 'кг':
         product_qty = product_qty / Decimal(1000)
@@ -621,12 +645,16 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
 
     try:
         # создаем транзакцию для пополнения запасов товара и обновляем его количество
-        await transaction_writeoff(outlet_id, product_id, product_qty, added_pieces)
+        await transaction_writeoff(outlet_id, product_id, product_qty, added_pieces, transaction_datetime)
         await callback.answer(text='Запасы продукта успешно списаны', show_alert=True)
-        await product_control_handler(callback, state)
+        if from_callback is None:
+            await choose_product_control_handler(callback, state)
+        elif from_callback == 'outlet:control:transactions':
+            await choose_transaction_product_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
+    await state.update_data(transaction_datetime=None)
 
 # меню отмены расчета баланса
 @stock_menu.callback_query(F.data == 'outlet:writeoff:cancel')
@@ -635,11 +663,12 @@ async def cancel_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     
     data = await state.get_data()
     product_id = data['product_id']
+    from_callback = data['from_callback']
     
     await callback.message.edit_text(text='❗️ <b>Вы пытаетесь выйти из операции списания товара. '\
                                             'Несохраненные данные будут утеряны.</b>',
                                             parse_mode='HTML',
-                                            reply_markup=kb.cancel_writeoff_product(product_id))
+                                            reply_markup=kb.cancel_writeoff_product(product_id, from_callback))
 
 
 # инициируем удаление товара из торговой точки
@@ -785,3 +814,151 @@ async def transaction_product_handler(callback: CallbackQuery, state: FSMContext
     await callback.message.edit_text(text=text,
                                      parse_mode='HTML',
                                      reply_markup=kb.transaction_menu)
+    
+
+# указываем дату новой транзакции
+@stock_menu.callback_query(F.data == 'outlet:control:transactions:new_transaction')
+@stock_menu.callback_query(F.data.startswith('outlet:control:transactions:month:prev:'))
+@stock_menu.callback_query(F.data.startswith('outlet:control:transactions:month:next:'))
+async def new_transaction_handler(callback: CallbackQuery, state: FSMContext):
+    # для оповещения о дате последней транзакции
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_info = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_info['stock_id']
+    
+    last_transaction_info = await get_last_transaction(outlet_id, stock_id)
+    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+    
+    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
+    year = now.year
+    month = now.month
+    # Переключаем месяца вперед и назад
+    if callback.data.startswith('outlet:control:transactions:month:'):
+        calendar_data = callback.data.split(':')
+        if calendar_data[4] == 'prev':
+            year = int(calendar_data[5])
+            month = int(calendar_data[6]) - 1
+            if month < 1:
+                month = 12
+                year -= 1
+        elif calendar_data[4] == 'next':
+            year = int(calendar_data[5])
+            month = int(calendar_data[6]) + 1
+            if month > 12:
+                month = 1
+                year += 1
+        await callback.message.edit_reply_markup(reply_markup=kb.transaction_calendar_keyboard(year, month))
+    else:
+        await callback.message.edit_text(text='<b>❓ УКАЖИТЕ ДАТУ ТРАНЗАКЦИИ</b>\n\n'
+                                                f'Дата последней транзакции - {last_transaction_datetime.strftime('%d-%m-%Y')}',
+                                        reply_markup=kb.transaction_calendar_keyboard(year, month),
+                                        parse_mode='HTML')
+        
+    # обозначаем откуда пришли, чтобы после создания транзакции в режиме эксперта возвращаться в правильное меню
+    await state.update_data(from_callback='outlet:control:transactions')
+    
+    
+# сохраняем дату в контекст и просим ввести время
+@stock_menu.callback_query(F.data.startswith('outlet:control:transactions:date:'))
+async def new_transaction_date_handler(callback: CallbackQuery, state: FSMContext):
+    date_comp = [int(_) for _ in callback.data.split(':')[-3:]]
+    transaction_datetime = {
+        'year': date_comp[0],
+        'month': date_comp[1],
+        'day': date_comp[2]
+        }
+    
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_info = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_info['stock_id']
+    
+    last_transaction_info = await get_last_transaction(outlet_id, stock_id)
+    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+    
+    if last_transaction_datetime.date() > date(**transaction_datetime):
+        await callback.answer(text='Дата новой транзакции должна быть позднее существующих', show_alert=True)
+        return None
+    
+    await state.update_data(transaction_datetime=transaction_datetime)
+    
+    await callback.message.edit_text(text=f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
+                                        f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n'
+                                        'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                        'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                     reply_markup=kb.cancel_transaction_creation,
+                                     parse_mode='HTML')
+    
+    await state.set_state(Transaction.time)
+    
+
+# принимаем время транзакции
+@stock_menu.message(Transaction.time)
+async def new_transaction_time_handler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    
+    data = await state.get_data()
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_info = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_info['stock_id']
+    
+    last_transaction_info = await get_last_transaction(outlet_id, stock_id)
+    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+    
+    
+    issue_time = message.text.replace(':', '')
+    try:
+        if len(issue_time) != 4:
+            raise(ValueError('Неправильный формат'))
+        transaction_datetime = data['transaction_datetime']
+        transaction_datetime['hour'] = int(issue_time[:2])
+        transaction_datetime['minute'] = int(issue_time[-2:])
+        datetime(**transaction_datetime)
+    except Exception:
+        try:
+            await state.set_state(Transaction.time)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                message_id=data['message_id'],
+                                                text='❗ <b>НЕВЕРНО УКАЗАНО ВРЕМЯ</b>\n\n' \
+                                                    f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
+                                                    f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n' \
+                                                    'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                                    'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                                reply_markup=kb.cancel_transaction_creation,
+                                                parse_mode='HTML')
+            return None
+        except TelegramBadRequest:
+            return None
+    
+    # проверяем указанные дату и время на новизну. новая транзакция не может быть странее самой новой.
+    if last_transaction_datetime.replace(tzinfo=None) > datetime(**transaction_datetime):
+        await state.set_state(Transaction.time)
+        await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                            message_id=data['message_id'],
+                                            text='❗ <b>Дата новой транзакции должна быть позднее существующих</b>\n\n' \
+                                                f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
+                                                f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n' \
+                                                'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                                'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                            reply_markup=kb.cancel_transaction_creation,
+                                            parse_mode='HTML')
+        return None
+        
+            
+    await state.update_data(transaction_datetime=transaction_datetime)
+    data = await state.get_data()
+    
+    product_id = data['product_id']
+    
+    await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                        message_id=data['message_id'],
+                                        text='<b>❓ ВЫБЕРИТЕ ТИП ТРАНЗАКЦИИ</b>',
+                                        reply_markup=kb.choose_transaction_type(product_id),
+                                        parse_mode='HTML')

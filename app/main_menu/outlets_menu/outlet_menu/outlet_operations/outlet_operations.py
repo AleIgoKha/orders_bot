@@ -11,7 +11,8 @@ from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
 from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling, were_stock_transactions
 from app.database.all_requests.outlet import get_outlet
-from app.com_func import represent_utc_3
+from app.main_menu.outlets_menu.outlet_menu.stock_menu.stock_menu import choose_transaction_product_handler
+from app.com_func import represent_utc_3, localize_user_input
 
 outlet_operations = Router()
 
@@ -444,8 +445,6 @@ async def confirm_selling_handler(callback: CallbackQuery, state: FSMContext):
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
 
-
-
 # выбираем товар для фиксации остатка
 @outlet_operations.callback_query(F.data.startswith('outlet:balance:page_'))
 @outlet_operations.callback_query(F.data == 'outlet:balance')
@@ -464,8 +463,10 @@ async def choose_product_balance_handler(callback: CallbackQuery, state: FSMCont
     else:
         page = data['page']
     
-    # сохраняем страницу для удобства при возвращении
-    await state.update_data(added_pieces=[], page=page)
+    await state.update_data(added_pieces=[],
+                            page=page, # сохраняем страницу для удобства при возвращении
+                            transaction_datetime=None,
+                            from_callback=None)
 
     outlet_id = data['outlet_id']
     stock_data = await get_active_stock_products(outlet_id)
@@ -498,6 +499,7 @@ async def product_balance_handler(callback: CallbackQuery, state: FSMContext):
     
     outlet_id = data['outlet_id']
     added_pieces = data['added_pieces']
+    from_callback = data['from_callback']
     
     # делаем проверку на наличие транзакции по балансу за текущий день
     # извлекаем id запасов
@@ -508,23 +510,22 @@ async def product_balance_handler(callback: CallbackQuery, state: FSMContext):
     check_flag = await were_stock_transactions(stock_id, date_time, transaction_types)
     
     # если транзакция уже была за текущий день, то выводим информацию о ней
-    if check_flag:
+    if check_flag and from_callback is None:
         text = await rollback_balance_text(outlet_id, product_id)
         
         await callback.message.edit_text(text=text,
-                                        reply_markup=kb.balance_product(added_pieces, check_flag),
+                                        reply_markup=kb.balance_product(added_pieces, from_callback, check_flag),
                                         parse_mode='HTML')
     # если не было транзакций за текущий день, то даем возможность ее сделать
     else:
         # формируем сообщение
         text, stock_qty, product_unit = await balance_text(outlet_id, product_id, added_pieces)
-        
         # запоминаем на будущее
         await state.update_data(stock_qty=stock_qty,
                                 product_unit=product_unit)
         
         await callback.message.edit_text(text=text,
-                                        reply_markup=kb.balance_product(added_pieces, check_flag),
+                                        reply_markup=kb.balance_product(added_pieces, from_callback, check_flag),
                                         parse_mode='HTML')
         
         await state.set_state(Stock.balance)
@@ -544,6 +545,7 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
     added_pieces = data['added_pieces']
     stock_qty = Decimal(data['stock_qty'])
     product_unit = data['product_unit']
+    from_callback = data['from_callback']
 
     text = (await balance_text(outlet_id, product_id, added_pieces))[0]
     
@@ -569,7 +571,7 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.balance_product(added_pieces))
+                                                    reply_markup=kb.balance_product(added_pieces, from_callback))
                 return None
             except TelegramBadRequest:
                 return None
@@ -582,7 +584,7 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
                                                     message_id=message_id,
                                                     text=text,
                                                     parse_mode='HTML',
-                                                    reply_markup=kb.balance_product(added_pieces))
+                                                    reply_markup=kb.balance_product(added_pieces, from_callback))
                 return None
             except TelegramBadRequest:
                 return None
@@ -595,7 +597,7 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
                                                 message_id=message_id,
                                                 text=text,
                                                 parse_mode='HTML',
-                                                reply_markup=kb.balance_product(added_pieces))
+                                                reply_markup=kb.balance_product(added_pieces, from_callback))
             return None
         except TelegramBadRequest:
             return None
@@ -610,7 +612,7 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
                                         message_id=message_id,
                                         text=text,
                                         parse_mode='HTML',
-                                        reply_markup=kb.balance_product(added_pieces))
+                                        reply_markup=kb.balance_product(added_pieces, from_callback))
     
     await state.set_state(Stock.balance)
 
@@ -658,11 +660,12 @@ async def cancel_balance_product_handler(callback: CallbackQuery, state: FSMCont
     
     data = await state.get_data()
     product_id = data['product_id']
+    from_callback = data['from_callback']
     
     await callback.message.edit_text(text='❗️ <b>Вы пытаетесь выйти из операции расчета продаж товара по остатку. '\
                                             'Несохраненные данные будут утеряны.</b>',
                                             parse_mode='HTML',
-                                            reply_markup=kb.cancel_balance_product(product_id))
+                                            reply_markup=kb.cancel_balance_product(product_id, from_callback))
     
     
 # меню финального расчета баланса
@@ -721,17 +724,28 @@ async def confirm_balance_product_handler(callback: CallbackQuery, state: FSMCon
     added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
     product_qty = sum(added_pieces)
     product_unit = data['product_unit']
+    from_callback = data['from_callback']
+
+    transaction_datetime = data['transaction_datetime']
+    
+    if transaction_datetime:
+        transaction_datetime = localize_user_input(datetime(**data['transaction_datetime']))
 
     if product_unit == 'кг':
         product_qty = product_qty / Decimal(1000)
         added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
     
     try:
-        await transaction_balance(outlet_id, product_id, product_qty, added_pieces)
+        await transaction_balance(outlet_id, product_id, product_qty, added_pieces, transaction_datetime)
         await callback.answer(text='Транзакция успешно создана', show_alert=True)
-        await choose_product_balance_handler(callback, state)
+        if from_callback is None:
+            await choose_product_balance_handler(callback, state)
+        elif from_callback == 'outlet:control:transactions':
+            await choose_transaction_product_handler(callback, state)
     except:
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
+        
+    await state.update_data(transaction_datetime=None)
     
 
 # инициируем отмену предыдущей транзакции обновления остатка
