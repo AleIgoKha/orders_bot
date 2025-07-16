@@ -214,7 +214,7 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
         
         text = f"{product_name} - {stock_qty} {product_unit}"
         
-        date_time = datetime.now(pytz.timezone("Europe/Chisinau"))
+        date_time = datetime.now()
         transaction_types = ['balance']
         
         check_flag = await were_stock_transactions(stock_id, date_time, transaction_types)
