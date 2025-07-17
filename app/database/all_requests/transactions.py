@@ -1,13 +1,12 @@
 from functools import wraps
 from contextlib import asynccontextmanager
-from sqlalchemy import select, update, delete, func, desc
+from sqlalchemy import select, update, delete, func, desc, extract
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
-import pytz
 
 from app.database.models import async_session, Transaction, Stock, Product
-from app.com_func import get_chisinau_day_bounds
+from app.com_func import get_utc_day_bounds
 
 
 # session context manager
@@ -324,8 +323,8 @@ async def transaction_balance(session, outlet_id, product_id, product_qty, added
 # проверяет наличие указанных транзакций совершенных с запасами продукта за указанную дату
 @with_session()
 async def were_stock_transactions(session, stock_id, date_time, transaction_types: list):
-    start, end = get_chisinau_day_bounds(date_time)
-
+    start, end = get_utc_day_bounds(date_time)
+    
     stmt = select(
         func.count(Transaction.transaction_id) > 0
     ).where(
@@ -336,13 +335,14 @@ async def were_stock_transactions(session, stock_id, date_time, transaction_type
     )
 
     result = await session.scalar(stmt)
+    
     return result
 
 
 # проверяет наличие указанных транзакций совершенных в торговой точке за указанную дату
 @with_session()
 async def were_outlet_transactions(session, outlet_id, date_time, transaction_types: list):
-    start, end = get_chisinau_day_bounds(date_time)
+    start, end = get_utc_day_bounds(date_time)
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0
