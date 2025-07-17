@@ -269,7 +269,7 @@ def balance_product(added_pieces, from_callback, check_flag=False):
         elif from_callback == 'outlet:control:transactions':
             lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back'))
     
-    if check_flag and from_callback in None:
+    if check_flag and from_callback is None:
         upper_buttons.append(InlineKeyboardButton(text='☠️ Откатить', callback_data='outlet:balance:rollback'))
     
     inline_keyboard.append(upper_buttons)

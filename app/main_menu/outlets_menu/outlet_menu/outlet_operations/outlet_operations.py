@@ -9,7 +9,7 @@ import pytz
 import app.main_menu.outlets_menu.outlet_menu.outlet_operations.keyboard as kb
 from app.states import Stock
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_transaction, rollback_selling, were_stock_transactions
+from app.database.all_requests.transactions import transaction_selling, transaction_balance, get_last_balance_transaction, rollback_selling, were_stock_transactions
 from app.database.all_requests.outlet import get_outlet
 from app.main_menu.outlets_menu.outlet_menu.stock_menu.stock_menu import choose_transaction_product_handler
 from app.com_func import represent_utc_3, localize_user_input
@@ -25,7 +25,7 @@ async def rollback_balance_text(outlet_id, product_id):
     stock_id = stock_product_data['stock_id']
     product_unit = stock_product_data['product_unit']
     
-    last_transaction_data = await get_last_transaction(outlet_id, stock_id, "balance")
+    last_transaction_data = await get_last_balance_transaction(outlet_id, stock_id)
     product_qty = last_transaction_data['product_qty']
     balance_after = last_transaction_data['balance_after']
     transaction_datetime = represent_utc_3(last_transaction_data['transaction_datetime'])
@@ -778,7 +778,7 @@ async def rollback_balance_confirm_handler(callback: CallbackQuery, state: FSMCo
     stock_id = stock_product_data['stock_id']
     
     # извлекаем id транзакции
-    last_transaction_data = await get_last_transaction(outlet_id, stock_id, "balance")
+    last_transaction_data = await get_last_balance_transaction(outlet_id, stock_id)
     transaction_id = last_transaction_data['transaction_id']
     
     try:

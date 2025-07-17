@@ -75,6 +75,43 @@ async def get_last_transaction(session, outlet_id, stock_id):
     return last_transaction_data
 
 
+# последняя транзакция с товаром торговой точки по типу транзакции
+@with_session()
+async def get_last_balance_transaction(session, outlet_id, stock_id):
+    
+    max_datetime = select(func.max(Transaction.transaction_datetime)) \
+                    .where(Transaction.outlet_id == outlet_id,
+                           Transaction.transaction_type == 'balance',
+                           Transaction.stock_id == stock_id)
+    
+    stmt = select(Transaction) \
+            .where(Transaction.outlet_id == outlet_id,
+                   Transaction.stock_id == stock_id,
+                   Transaction.transaction_type == 'balance',
+                   Transaction.transaction_datetime == max_datetime)
+    
+    last_transaction = await session.scalar(stmt)
+    
+    if last_transaction is not None:
+        last_transaction_data = {
+            'transaction_id': last_transaction.transaction_id,
+            'outlet_id': last_transaction.outlet_id,
+            'stock_id': last_transaction.stock_id,
+            'transaction_datetime': last_transaction.transaction_datetime,
+            'transaction_type': last_transaction.transaction_type,
+            'transaction_product_name': last_transaction.transaction_product_name,
+            'product_qty': last_transaction.product_qty,
+            'transaction_product_price': last_transaction.transaction_product_price,
+            'balance_after': last_transaction.balance_after,
+            'transaction_info': last_transaction.transaction_info,
+            'transaction_note': last_transaction.transaction_note
+            }
+    else:
+        last_transaction_data = None
+    
+    return last_transaction_data
+
+
 # проводим транзакцию пополнения товара
 @with_session(commit=True)
 async def transaction_replenish(session, outlet_id, product_id, product_qty, added_pieces: list=None, transaction_datetime: datetime=None):
