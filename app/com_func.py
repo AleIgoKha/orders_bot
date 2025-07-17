@@ -1,21 +1,38 @@
 import pytz
-from datetime import time, datetime, timedelta
+from datetime import datetime, timedelta
 
 
 # границы начала и конца дня
-def get_chisinau_day_bounds(date_time: datetime):
-    tz = pytz.timezone("Europe/Chisinau")
-    
+def get_utc_day_bounds(date_time: datetime):
     # Ensure datetime is timezone-aware in Chisinau
-    if date_time.tzinfo is None:
-        date_time = tz.localize(date_time)
-    else:
-        date_time = date_time.astimezone(tz)
     
-    start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
+    # Если это были цифры введенные человеком
+    if date_time.tzinfo is None:
+        tz = pytz.timezone("Europe/Chisinau")
+        date_time = tz.localize(date_time)
+    
+    date_time = datetime(date_time.year, date_time.month, date_time.day, 0, 0)
+    
+    start_of_day = date_time.astimezone(pytz.utc)
     end_of_day = start_of_day + timedelta(days=1)
     
-    return start_of_day.astimezone(pytz.utc), end_of_day.astimezone(pytz.utc)
+    return start_of_day, end_of_day
+
+
+# # границы начала и конца дня
+# def get_chisinau_day_bounds(date_time: datetime):
+#     tz = pytz.timezone("Europe/Chisinau")
+    
+#     # Ensure datetime is timezone-aware in Chisinau
+#     if date_time.tzinfo is None:
+#         date_time = tz.localize(date_time)
+#     else:
+#         date_time = date_time.astimezone(tz)
+    
+#     start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
+#     end_of_day = start_of_day + timedelta(days=1)
+    
+#     return start_of_day.astimezone(pytz.utc), end_of_day.astimezone(pytz.utc)
 
 
 # функция для локализации инпута и now()

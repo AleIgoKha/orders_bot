@@ -4,7 +4,7 @@ from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, e
 from sqlalchemy.orm import joinedload
 from decimal import Decimal
 from datetime import datetime
-from app.com_func import get_chisinau_day_bounds
+from app.com_func import get_utc_day_bounds
 
 
 def connection(func):
@@ -169,7 +169,7 @@ async def get_orders(session, session_id):
 @connection
 async def get_orders_by_date(session, session_id, issued, date_time: datetime=None):
     if not date_time is None:
-        start, end = get_chisinau_day_bounds(date_time)
+        start, end = get_utc_day_bounds(date_time)
     
     
     stmt = select(Order).where(Order.session_id == session_id)
@@ -336,7 +336,7 @@ async def get_session_items_stats(session, session_id):
 @connection
 async def get_session_stats(session, session_id, issued, date_time: datetime=None):
     if not date_time is None:
-        start, end = get_chisinau_day_bounds(date_time)
+        start, end = get_utc_day_bounds(date_time)
     
     stmt = select(
                 Item.item_name,

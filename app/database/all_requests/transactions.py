@@ -1,13 +1,12 @@
 from functools import wraps
 from contextlib import asynccontextmanager
-from sqlalchemy import select, update, delete, func, desc
+from sqlalchemy import select, update, delete, func, desc, extract
 from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
-import pytz
 
 from app.database.models import async_session, Transaction, Stock, Product
-from app.com_func import get_chisinau_day_bounds
+from app.com_func import get_utc_day_bounds
 
 
 # session context manager
@@ -51,6 +50,43 @@ async def get_last_transaction(session, outlet_id, stock_id):
     stmt = select(Transaction) \
             .where(Transaction.outlet_id == outlet_id,
                    Transaction.stock_id == stock_id,
+                   Transaction.transaction_datetime == max_datetime)
+    
+    last_transaction = await session.scalar(stmt)
+    
+    if last_transaction is not None:
+        last_transaction_data = {
+            'transaction_id': last_transaction.transaction_id,
+            'outlet_id': last_transaction.outlet_id,
+            'stock_id': last_transaction.stock_id,
+            'transaction_datetime': last_transaction.transaction_datetime,
+            'transaction_type': last_transaction.transaction_type,
+            'transaction_product_name': last_transaction.transaction_product_name,
+            'product_qty': last_transaction.product_qty,
+            'transaction_product_price': last_transaction.transaction_product_price,
+            'balance_after': last_transaction.balance_after,
+            'transaction_info': last_transaction.transaction_info,
+            'transaction_note': last_transaction.transaction_note
+            }
+    else:
+        last_transaction_data = None
+    
+    return last_transaction_data
+
+
+# последняя транзакция с товаром торговой точки по типу транзакции
+@with_session()
+async def get_last_balance_transaction(session, outlet_id, stock_id):
+    
+    max_datetime = select(func.max(Transaction.transaction_datetime)) \
+                    .where(Transaction.outlet_id == outlet_id,
+                           Transaction.transaction_type == 'balance',
+                           Transaction.stock_id == stock_id)
+    
+    stmt = select(Transaction) \
+            .where(Transaction.outlet_id == outlet_id,
+                   Transaction.stock_id == stock_id,
+                   Transaction.transaction_type == 'balance',
                    Transaction.transaction_datetime == max_datetime)
     
     last_transaction = await session.scalar(stmt)
@@ -287,8 +323,8 @@ async def transaction_balance(session, outlet_id, product_id, product_qty, added
 # проверяет наличие указанных транзакций совершенных с запасами продукта за указанную дату
 @with_session()
 async def were_stock_transactions(session, stock_id, date_time, transaction_types: list):
-    start, end = get_chisinau_day_bounds(date_time)
-
+    start, end = get_utc_day_bounds(date_time)
+    
     stmt = select(
         func.count(Transaction.transaction_id) > 0
     ).where(
@@ -299,13 +335,14 @@ async def were_stock_transactions(session, stock_id, date_time, transaction_type
     )
 
     result = await session.scalar(stmt)
+    
     return result
 
 
 # проверяет наличие указанных транзакций совершенных в торговой точке за указанную дату
 @with_session()
 async def were_outlet_transactions(session, outlet_id, date_time, transaction_types: list):
-    start, end = get_chisinau_day_bounds(date_time)
+    start, end = get_utc_day_bounds(date_time)
 
     stmt = select(
         func.count(Transaction.transaction_id) > 0

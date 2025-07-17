@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import aliased
 
 from app.database.models import async_session, Transaction, Product
-from app.com_func import get_chisinau_day_bounds
+from app.com_func import get_utc_day_bounds
 
 
 
@@ -43,7 +43,7 @@ def with_session(commit: bool = False):
 # статистика по продажам торговой точки за день
 @with_session()
 async def selling_statistics(session, outlet_id, date_time):
-    start, end = get_chisinau_day_bounds(date_time)
+    start, end = get_utc_day_bounds(date_time)
 
     ProductAlias = aliased(Product)
 
