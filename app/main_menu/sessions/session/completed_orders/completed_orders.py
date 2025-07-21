@@ -39,9 +39,9 @@ def order_message(order_items_data):
             text += f'{item_name}{item_vacc}'
             item_price = item_qty_fact * item_price + vacc_price
             if item_unit == 'кг': # Переводим килограмы в граммы
-                text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]}\n'
+                text += f' - {int(item_qty_fact * 1000)} {item_unit[-1]} - {round(item_price, 2)} руб.\n'
             else:
-                text += f' - {int(item_qty_fact)} {item_unit}\n'
+                text += f' - {int(item_qty_fact)} {item_unit} - {round(item_price)} руб.\n'
             # Рассчитываем стоимость всключая вакуум
             
             total_price += item_price
@@ -49,8 +49,14 @@ def order_message(order_items_data):
     delivery_price = order_items_data['delivery_price']
     
     if order_items_data['issue_method'] != 'Самовывоз':
+        print(delivery_price)
         if delivery_price == 0:
-            text += '\n<b>Бесплатная доставка</b>\n'
+            text += '\n<b>Бесплатная доставка (более 300 руб.)</b>\n'
+        elif delivery_price is None:
+            # когда меняем метод выдачи на доставку у собранного заказа, стоимость доставки при неуказании становится None
+            # чтобы не было ошибки обрабатываем это
+            text += f'\nСтоимость доставки - <b>0 руб.</b>\n'
+            delivery_price = 0
         else:
             text += f'\nСтоимость доставки - <b>{round(delivery_price)} руб.</b>\n'
     else:

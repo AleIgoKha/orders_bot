@@ -58,14 +58,14 @@ def vacc_price_counter(item_vacc, qty, unit):
     if item_vacc:
         qty_gramms = qty * 1000
         if unit != 'кг':
-            vacc_price = 5
+            vacc_price = 5 * qty
         elif qty == 0:
             vacc_price = 0
-        elif 0 < qty_gramms < 200:
-            vacc_price = 5
-        elif 200 <= qty_gramms < 300:
-            vacc_price = 6
-        elif 300 <= qty_gramms:
+        # elif 0 < qty_gramms < 200:
+        #     vacc_price = 5
+        # elif 200 <= qty_gramms < 300:
+        #     vacc_price = 6
+        elif 0 < qty_gramms:
             vacc_price = (qty_gramms * 2) / 100
     else:
         vacc_price = 0
