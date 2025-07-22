@@ -52,16 +52,18 @@ async def replenishment_text(outlet_id, product_id, added_pieces):
     # формируем список кусков
     added_pieces_text = ''
     if len(added_pieces) != 0:
-        added_pieces_text = '\nНа данный момент добавлены части товара размером:\n'
+        added_pieces_text = '\nДобавлены части:\n'
         for added_piece in added_pieces:
             added_pieces_text += f'<b>{added_piece} {product_unit_pieces}</b>\n'
         added_pieces_text += f'Итого к пополнению - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
+    else:
+        added_pieces_text = f'\nВведите количество продукта в <b>{product_unit_amend}</b>. Количество продукта можно вводить частами или сразу суммарное.\n'
         
     text = '➕ <b>ПОПОЛНЕНИЕ</b>\n\n' \
             f'Вы пытаетесь пополнить запасы товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
             f'{added_pieces_text}' \
-            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>\n\n'
+            # '\nПо окончании добавления всех частей товара нажмите <b>Расчитать</b> в противном случае нажмите <b>Отмена</b>.'
     
     return text
 
@@ -82,24 +84,28 @@ async def writeoff_text(outlet_id, product_id, added_pieces):
     if product_unit == 'кг':
         product_unit_amend = 'граммах'
         product_unit_pieces = 'г'
+        available = stock_qty * 1000
     else:
         product_unit_amend = 'штуках'
         product_unit_pieces = 'шт.'
         stock_qty = int(stock_qty)
+        available = stock_qty
         
     # формируем список кусков
-    added_pieces_text = ''
     if len(added_pieces) != 0:
-        added_pieces_text = '\nНа данный момент добавлены части товара размером:\n'
+        added_pieces_text = '\nДобавлены части:\n'
         for added_piece in added_pieces:
             added_pieces_text += f'<b>{added_piece} {product_unit_pieces}</b>\n'
-        added_pieces_text += f'Итого к списанию - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
+        added_pieces_text += f'Итого к списанию - <b>{sum(added_pieces)} {product_unit_pieces}</b> (доступно <b>{int(available - sum(added_pieces))})</b>\n'
+    else:
+        added_pieces_text = f'\nВведите количество продукта в <b>{product_unit_amend}</b>. Количество продукта можно вводить частами или сразу суммарное.\n'
+        
         
     text = '➖ <b>СПИСАНИЕ</b>\n\n' \
             f'Вы пытаетесь списать часть запасов товара <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
             f'{added_pieces_text}' \
-            f'\nЕсли все правильно, введите количество продукта в <b>{product_unit_amend}</b>, в противном случае нажмите <b>Отмена</b>.'
+            # f'\nПо окончании добавления всех частей товара нажмите <b>Расчитать</b> в противном случае нажмите <b>Отмена</b>.'
     
     return text
 

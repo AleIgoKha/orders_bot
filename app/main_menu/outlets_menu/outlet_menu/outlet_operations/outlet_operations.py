@@ -130,26 +130,27 @@ async def balance_text(outlet_id, product_id, added_pieces):
     if product_unit == 'кг':
         product_unit_amend = 'граммах'
         product_unit_pieces = 'г'
+        available = stock_qty * 1000
     else:
         product_unit_amend = 'штуках'
         product_unit_pieces = 'шт.'
         stock_qty = int(stock_qty)
+        available = stock_qty
     
     # формируем список кусков
-    added_pieces_text = ''
     if len(added_pieces) != 0:
-        added_pieces_text = '\nНа данный момент добавлены части товара размером:\n'
+        added_pieces_text = '\nДобавлены части:\n'
         for added_piece in added_pieces:
             added_pieces_text += f'<b>{added_piece} {product_unit_pieces}</b>\n'
-        added_pieces_text += f'Итого остаток - <b>{sum(added_pieces)} {product_unit_pieces}</b>\n'
+        added_pieces_text += f'Итого остаток - <b>{sum(added_pieces)} {product_unit_pieces}</b> (доступно <b>{int(available - sum(added_pieces))})</b>\n'
+    else:
+        added_pieces_text = f'\nВведите количество продукта в <b>{product_unit_amend}</b>. Количество продукта можно вводить частами или сразу суммарное.\n'
     
-    text = '❓ <b>УКАЖИТЕ ОСТАТОК ПРОДУКТА </b>\n\n' \
+    text = '🧮 <b>РАСЧЕТ ПРОДАЖ ПО ОСТАТКУ </b>\n\n' \
             f'Вы пытаетесь зафиксировать остаток продукта <b>{product_name}</b> в тороговой точке <b>{outlet_name}</b>.\n\n' \
             f'Текущий запас товара - <b>{stock_qty} {product_unit}</b>\n' \
-            f'\nВведите количество продукта в <b>{product_unit_amend}</b>. ' \
-            'Количество продукта можно вводить частами или сразу суммарное.\n' \
             f'{added_pieces_text}' \
-            '\nПо окончании добавления всех частей товара нажмите <b>Расчитать</b> в противном случае нажмите <b>Отмена</b>.'
+            # '\nПо окончании добавления всех частей товара нажмите <b>Расчитать</b> в противном случае нажмите <b>Отмена</b>.'
     
     return text, str(stock_qty), product_unit
 
@@ -562,10 +563,10 @@ async def product_balance_receiver_handler(message: Message, state: FSMContext):
         # количество продукта с учетом последнего добавленного куска
         total_qty = product_qty + Decimal(sum(added_pieces))
         
-        if product_qty < 0:
+        if product_qty <= 0:
             try:
                 await state.set_state(Stock.balance)
-                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ НУЛЯ</b>\n\n'
+                warning_text = '❗<b>КОЛИЧЕСТВО НЕ МОЖЕТ БЫТЬ МЕНЬШЕ ИЛИ РАВНО НУЛЮ</b>\n\n'
                 text = warning_text + text
                 await message.bot.edit_message_text(chat_id=chat_id,
                                                     message_id=message_id,
