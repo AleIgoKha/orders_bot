@@ -10,9 +10,15 @@ from app.com_func import localize_user_input
 
 outlet_statistics = Router()
 
-
 # меню статистики
 @outlet_statistics.callback_query(F.data == 'outlet:statistics')
+async def stats_menu_handler(callback: CallbackQuery):
+    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ВИД СТАТИСТИКИ</b>',
+                                     reply_markup=kb.stats_menu,
+                                     parse_mode='HTML')
+
+# меню выбора дня для экспресс статистики
+@outlet_statistics.callback_query(F.data == 'outlet:statistics:express')
 @outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:prev:'))
 @outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:next:'))
 async def outlet_statistics_handler(callback: CallbackQuery, state: FSMContext):
