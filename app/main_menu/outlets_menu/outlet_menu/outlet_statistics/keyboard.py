@@ -5,6 +5,16 @@ from calendar import monthrange
 from app.database.all_requests.transactions import were_outlet_transactions
 
 
+# меню статистики
+stats_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='🚀 Экспресс', callback_data='outlet:statistics:express')],
+    # [InlineKeyboardButton(text='📊 Продажи за 1 день', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/4exGEz5MBVm/')],
+    [InlineKeyboardButton(text='📈 Продажи за 7 дней', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/4exGEz5MBVm/')],
+    [InlineKeyboardButton(text='📖 Продажи за все время', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/Yo7DWqLML8d/')],
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:back')]
+])
+
+
 # Календарь для выбора даты
 async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardMarkup:
     """
@@ -54,16 +64,10 @@ async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardM
         keyboard.append(row)
         if day_counter > days_in_month:
             break
-    
-    # additional_buttons = [
-    #     InlineKeyboardButton(text='📊 За все время', callback_data=f'outlet:statistics:total_stats')
-    # ]
-
-    # keyboard.append(additional_buttons)
 
     navigation_buttons = [
         InlineKeyboardButton(text="⬅️ Ранее", callback_data=f"outlet:statistics:month:prev:{year}:{month}"),
-        InlineKeyboardButton(text="❌ Отмена", callback_data="outlet:back"),
+        InlineKeyboardButton(text="❌ Отмена", callback_data="outlet:statistics"),
         InlineKeyboardButton(text="➡️ Позднее", callback_data=f"outlet:statistics:month:next:{year}:{month}"),
     ]
     keyboard.append(navigation_buttons)
@@ -73,5 +77,5 @@ async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardM
 
 # кнопка назад для выхода из статистики
 back_button = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics')]
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics:express')]
 ])
