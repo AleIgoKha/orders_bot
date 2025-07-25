@@ -280,6 +280,8 @@ def choose_transaction(transactions: list, product_unit: str, product_id: int, p
             
         product_qty = transaction['product_qty']
         
+        
+        product_amended = product_unit
         if product_unit == 'кг':
             product_qty = product_qty * Decimal(1000)
             product_amended = 'г'
