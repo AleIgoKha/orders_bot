@@ -11,6 +11,7 @@ from app.com_func import represent_utc_3
 
 # Меню запасов
 stock_menu = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='📊 Анализ запасов', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/Oj5Mrk9Jxe9/')],
     [InlineKeyboardButton(text='⚙️ Управление', callback_data='outlet:control')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:back')]
 ])
