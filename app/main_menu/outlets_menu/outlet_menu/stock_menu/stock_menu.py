@@ -610,7 +610,7 @@ async def correct_piece_handler(callback: CallbackQuery, state: FSMContext):
     
 # просим подтверждения списания
 @stock_menu.callback_query(F.data == 'outlet:writeoff:calculate')
-async def calculate_replenishment_handler(callback: CallbackQuery, state: FSMContext):
+async def calculate_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     product_qty = sum(data['added_pieces'])
@@ -629,28 +629,57 @@ async def calculate_replenishment_handler(callback: CallbackQuery, state: FSMCon
                                         parse_mode='HTML')
 
 
+# просим подтверждения списания всех запасов продукта
+@stock_menu.callback_query(F.data == 'outlet:writeoff:all')
+async def all_writeoff_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    product_qty = Decimal(data['stock_qty'])
+    product_unit = data['product_unit']
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_data = await get_stock_product(outlet_id, product_id)
+    product_name = stock_data['product_name']
+    
+    if product_unit == 'кг':
+        product_unit = product_unit[-1]
+        product_qty = product_qty * 1000
+    
+    await callback.message.edit_text(text=f'Будет выполнено списание товара <b>{product_name}</b> на <b>{int(product_qty)} {product_unit}</b>',
+                                        reply_markup=kb.confirm_writeoff_product,
+                                        parse_mode='HTML')
+
+
 # подтверждение списания запасов товара
 @stock_menu.callback_query(F.data == 'outlet:writeoff:confirm')
 async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     outlet_id = data['outlet_id']
     product_id = data['product_id']
-    added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
-    product_qty = sum(added_pieces)
     product_unit = data['product_unit']
     from_callback = data['from_callback']
+    
+    added_pieces = [Decimal(added_piece) for added_piece in data['added_pieces']]
+    product_qty = sum(added_pieces)
+            
+    # переводим граммы в килограммы
+    if product_unit == 'кг':
+        product_qty = product_qty / Decimal(1000)
+        added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
+    
+    # если добавленных кусков нет, то это может быть только списание всего продукта
+    if len(added_pieces) == 0:
+        stock_qty = data['stock_qty']
+        product_qty = Decimal(stock_qty)
     
     transaction_datetime = data['transaction_datetime']
     
     if transaction_datetime:
         transaction_datetime = localize_user_input(datetime(**data['transaction_datetime']))
 
-    if product_unit == 'кг':
-        product_qty = product_qty / Decimal(1000)
-        added_pieces = [added_piece / Decimal(1000) for added_piece in added_pieces]
-
     try:
-        # создаем транзакцию для пополнения запасов товара и обновляем его количество
+        # создаем транзакцию для списания запасов товара и обновляем его количество
         await transaction_writeoff(outlet_id, product_id, product_qty, added_pieces, transaction_datetime)
         await callback.answer(text='Запасы продукта успешно списаны', show_alert=True)
         if from_callback is None:
@@ -661,6 +690,7 @@ async def confirm_writeoff_handler(callback: CallbackQuery, state: FSMContext):
         await callback.answer(text='Невозможно создать транзакцию', show_alert=True)
 
     await state.update_data(transaction_datetime=None)
+
 
 # меню отмены расчета баланса
 @stock_menu.callback_query(F.data == 'outlet:writeoff:cancel')

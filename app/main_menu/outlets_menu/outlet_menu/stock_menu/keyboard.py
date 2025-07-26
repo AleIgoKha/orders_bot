@@ -152,10 +152,13 @@ def change_stock_qty_menu(operation, added_pieces, product_id, from_callback):
         lower_buttons.append(InlineKeyboardButton(text='🧮 Расчитать', callback_data=f'outlet:{operation}:calculate'))
         lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:{operation}:cancel'))
     else:
+        if operation == 'writeoff':
+            upper_buttons.append(InlineKeyboardButton(text='🧨Списать все', callback_data=f'outlet:writeoff:all'))
         if from_callback is None:
             lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:product_id_{product_id}'))
         elif from_callback == 'outlet:control:transactions':
             lower_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back'))
+        
     
     inline_keyboard.append(upper_buttons)
     
