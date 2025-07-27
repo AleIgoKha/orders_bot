@@ -357,7 +357,7 @@ async def were_outlet_transactions(session, outlet_id, date_time, transaction_ty
     return result
 
 
-# откат транзакции продажи
+# откат транзакции продажи и баланса
 @with_session(commit=True)
 async def rollback_selling(session, transaction_id, stock_id):
     
@@ -376,6 +376,46 @@ async def rollback_selling(session, transaction_id, stock_id):
     
     await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
     
+
+# откат транзакции пополнения
+@with_session(commit=True)
+async def rollback_replenishment(session, transaction_id):
+    
+    transaction_data = await session.scalar(select(Transaction).where(Transaction.transaction_id == transaction_id))
+    
+    if not transaction_data:
+        raise ValueError(f"Transaction {transaction_id} not found.")
+    
+    stock_data = await session.scalar(select(Stock).where(Stock.stock_id == transaction_data.stock_id).with_for_update())
+    
+    if not stock_data:
+        raise ValueError(f"Stock {transaction_data.stock_id} not found.")
+    
+    stock_data.stock_qty -= transaction_data.product_qty
+    stock_data.stock_active = True
+    
+    await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
+    
+    
+# откат транзакции продажи
+@with_session(commit=True)
+async def rollback_writeoff(session, transaction_id):
+    
+    transaction_data = await session.scalar(select(Transaction).where(Transaction.transaction_id == transaction_id))
+    
+    if not transaction_data:
+        raise ValueError(f"Transaction {transaction_id} not found.")
+    
+    stock_data = await session.scalar(select(Stock).where(Stock.stock_id == transaction_data.stock_id).with_for_update())
+    
+    if not stock_data:
+        raise ValueError(f"Stock {transaction_data.stock_id} not found.")
+    
+    stock_data.stock_qty += transaction_data.product_qty
+    stock_data.stock_active = True
+    
+    await session.execute(delete(Transaction).where(Transaction.transaction_id == transaction_id))
+
 
 # информация о транзакциях товара в торговой точке
 @with_session()
