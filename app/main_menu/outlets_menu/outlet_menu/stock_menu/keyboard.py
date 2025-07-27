@@ -332,9 +332,15 @@ def choose_transaction(transactions: list, product_unit: str, product_id: int, p
 
 
 # меню транзакции
-transaction_menu = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='◀️ Назад', callback_data=f'outlet:control:transactions:back')]
-    ])
+def transaction_menu(is_last_transaction):
+    inline_keyboard = []
+    
+    if is_last_transaction == True:
+        inline_keyboard.append([InlineKeyboardButton(text='☠️ Откатить', callback_data=f'outlet:control:transactions:rollback')])
+    
+    inline_keyboard.append([InlineKeyboardButton(text='◀️ Назад', callback_data=f'outlet:control:transactions:back')])
+    
+    return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
 # Календарь для выбора даты
@@ -409,4 +415,10 @@ def choose_transaction_type(product_id):
         [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data=f'outlet:balance:product_id_{product_id}')],
         # [InlineKeyboardButton(text='💸 Расчет продажам', callback_data=f'outlet:control:transactions:back')],
         [InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:back')]
+    ])
+    
+    
+def transaction_rollback_menu(transaction_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='❌ Отмена', callback_data=f'outlet:control:transactions:transaction_id_{transaction_id}')]
     ])

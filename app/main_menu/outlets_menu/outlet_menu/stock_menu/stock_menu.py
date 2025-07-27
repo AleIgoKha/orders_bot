@@ -11,7 +11,15 @@ import app.main_menu.outlets_menu.outlet_menu.stock_menu.keyboard as kb
 from app.states import Stock
 from app.database.requests import get_product
 from app.database.all_requests.stock import get_stock_product, get_active_stock_products, add_stock, get_out_stock_products
-from app.database.all_requests.transactions import transaction_writeoff, transaction_replenish, transaction_delete_product, transactions_info, transaction_info, get_last_transaction
+from app.database.all_requests.transactions import (transaction_writeoff,
+                                                    transaction_replenish,
+                                                    transaction_delete_product,
+                                                    transactions_info,
+                                                    transaction_info,
+                                                    get_last_transaction,
+                                                    rollback_selling,
+                                                    rollback_writeoff,
+                                                    rollback_replenishment)
 from app.database.all_requests.outlet import get_outlet
 from app.com_func import represent_utc_3, localize_user_input
 from app.states import Transaction
@@ -790,11 +798,14 @@ async def choose_transaction_product_handler(callback: CallbackQuery, state: FSM
 # выводим информацию о транзакции товара торговой точки
 @stock_menu.callback_query(F.data.startswith('outlet:control:transactions:transaction_id_'))
 async def transaction_product_handler(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(None)
     
     transaction_id = int(callback.data.split('_')[-1])
+    await state.update_data(transaction_id=transaction_id)
     
     data = await state.get_data()
     outlet_id = data['outlet_id']
+    stock_id = data['stock_id']
     
     product_id = data['product_id']
     stock_data = await get_stock_product(outlet_id, product_id)
@@ -845,11 +856,19 @@ async def transaction_product_handler(callback: CallbackQuery, state: FSMContext
                 part = part * Decimal(1000)
             
             text += f'- <b>{round(part)} {product_unit}</b>\n'
-        
+    
+    # чтобы кнопка "Откатить" появлялась только у самой последней транзакции
+    # делаем проверку на совпадение номера
+    last_transaction_data = await get_last_transaction(outlet_id, stock_id)
+    last_transaction_id = last_transaction_data['transaction_id']
+    
+    is_last_transaction = False
+    if transaction_id == last_transaction_id:
+        is_last_transaction = True
     
     await callback.message.edit_text(text=text,
                                      parse_mode='HTML',
-                                     reply_markup=kb.transaction_menu)
+                                     reply_markup=kb.transaction_menu(is_last_transaction))
     
 
 # указываем дату новой транзакции
@@ -866,8 +885,13 @@ async def new_transaction_handler(callback: CallbackQuery, state: FSMContext):
     stock_id = stock_info['stock_id']
     
     last_transaction_info = await get_last_transaction(outlet_id, stock_id)
-    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
     
+    if not last_transaction_info is None:
+        last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+        last_transaction_datetime_text = f'Дата последней транзакции - {last_transaction_datetime.strftime('%d-%m-%Y')}'
+    else:
+        last_transaction_datetime_text = ''
+        
     now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     year = now.year
     month = now.month
@@ -889,7 +913,7 @@ async def new_transaction_handler(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_reply_markup(reply_markup=kb.transaction_calendar_keyboard(year, month))
     else:
         await callback.message.edit_text(text='<b>❓ УКАЖИТЕ ДАТУ ТРАНЗАКЦИИ</b>\n\n'
-                                                f'Дата последней транзакции - {last_transaction_datetime.strftime('%d-%m-%Y')}',
+                                                f'{last_transaction_datetime_text}',
                                         reply_markup=kb.transaction_calendar_keyboard(year, month),
                                         parse_mode='HTML')
         
@@ -915,16 +939,22 @@ async def new_transaction_date_handler(callback: CallbackQuery, state: FSMContex
     stock_id = stock_info['stock_id']
     
     last_transaction_info = await get_last_transaction(outlet_id, stock_id)
-    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
     
-    if last_transaction_datetime.date() > date(**transaction_datetime):
-        await callback.answer(text='Дата новой транзакции должна быть позднее существующих', show_alert=True)
-        return None
+    if not last_transaction_info is None:
+        last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+        last_transaction_datetime_text = f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n'
+        
+        # если последняя транзакция новее указанного времени, то ее нельзя создать
+        if last_transaction_datetime.date() > date(**transaction_datetime):
+            await callback.answer(text='Дата новой транзакции должна быть позднее существующих', show_alert=True)
+            return None
+    else:
+        last_transaction_datetime_text = ''
     
     await state.update_data(transaction_datetime=transaction_datetime)
     
     await callback.message.edit_text(text=f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
-                                        f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n'
+                                        f'{last_transaction_datetime_text}'
                                         'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
                                         'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
                                      reply_markup=kb.cancel_transaction_creation,
@@ -946,7 +976,12 @@ async def new_transaction_time_handler(message: Message, state: FSMContext):
     stock_id = stock_info['stock_id']
     
     last_transaction_info = await get_last_transaction(outlet_id, stock_id)
-    last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+    
+    if not last_transaction_info is None:
+        last_transaction_datetime = represent_utc_3(last_transaction_info['transaction_datetime'])
+        last_transaction_datetime_text = f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n'
+    else:
+        last_transaction_datetime_text = ''
     
     
     issue_time = message.text.replace(':', '')
@@ -964,7 +999,7 @@ async def new_transaction_time_handler(message: Message, state: FSMContext):
                                                 message_id=data['message_id'],
                                                 text='❗ <b>НЕВЕРНО УКАЗАНО ВРЕМЯ</b>\n\n' \
                                                     f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
-                                                    f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n' \
+                                                    f'{last_transaction_datetime_text}' \
                                                     'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
                                                     'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
                                                 reply_markup=kb.cancel_transaction_creation,
@@ -974,18 +1009,19 @@ async def new_transaction_time_handler(message: Message, state: FSMContext):
             return None
     
     # проверяем указанные дату и время на новизну. новая транзакция не может быть странее самой новой.
-    if last_transaction_datetime.replace(tzinfo=None) > datetime(**transaction_datetime):
-        await state.set_state(Transaction.time)
-        await message.bot.edit_message_text(chat_id=data['chat_id'],
-                                            message_id=data['message_id'],
-                                            text='❗ <b>Дата новой транзакции должна быть позднее существующих</b>\n\n' \
-                                                f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
-                                                f'Дата и время последней транзакции - {last_transaction_datetime.strftime('%H:%M %d-%m-%Y')}\n\n' \
-                                                'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
-                                                'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
-                                            reply_markup=kb.cancel_transaction_creation,
-                                            parse_mode='HTML')
-        return None
+    if not last_transaction_info is None:
+        if last_transaction_datetime.replace(tzinfo=None) > datetime(**transaction_datetime):
+            await state.set_state(Transaction.time)
+            await message.bot.edit_message_text(chat_id=data['chat_id'],
+                                                message_id=data['message_id'],
+                                                text='❗ <b>Дата новой транзакции должна быть позднее существующих</b>\n\n' \
+                                                    f'⌚️ <b>УКАЖИТЕ ВРЕМЯ ТРАНЗАКЦИИ</b>\n\n' \
+                                                    f'{last_transaction_datetime_text}' \
+                                                    'Формат ввода времени: <i>Например 13:30 можно указать как 1330 без символа " : ". '\
+                                                    'Важно, чтобы перед компонентами времени с одним заком стоял 0 в начале - 08:05 или 0805.</i>',
+                                                reply_markup=kb.cancel_transaction_creation,
+                                                parse_mode='HTML')
+            return None
         
             
     await state.update_data(transaction_datetime=transaction_datetime)
@@ -997,4 +1033,68 @@ async def new_transaction_time_handler(message: Message, state: FSMContext):
                                         message_id=data['message_id'],
                                         text='<b>❓ ВЫБЕРИТЕ ТИП ТРАНЗАКЦИИ</b>',
                                         reply_markup=kb.choose_transaction_type(product_id),
+                                        parse_mode='HTML')
+    
+    
+# для отката транзакции просим написать слово "ОТКАТИТЬ"
+@stock_menu.callback_query(F.data == 'outlet:control:transactions:rollback')
+async def rollback_transaction_control_hendler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    transaction_id = data['transaction_id']
+    
+    await callback.message.edit_text(text=f'Чтобы откатить транзакцию <b>№{transaction_id}</b> введите слово <code>ОТКАТИТЬ</code>',
+                                     reply_markup=kb.transaction_rollback_menu(transaction_id),
+                                     parse_mode='HTML')
+    
+    await state.set_state(Transaction.rollback)
+
+
+# ловим слово "ОТКАТИТЬ"
+@stock_menu.message(Transaction.rollback)
+async def rollback_transaction_receiver_hendler(message: Message, state: FSMContext):
+    await state.set_state(None)
+    
+    if message.text.lower() != 'откатить':
+        await state.set_state(Transaction.rollback)
+        return None
+
+    data = await state.get_data()
+    stock_id = data['stock_id']
+    transaction_id = data['transaction_id']
+    chat_id = data['chat_id']
+    message_id = data['message_id']
+
+    transaction_data = await transaction_info(transaction_id)
+    
+    transaction_type = transaction_data['transaction_type']
+    
+    try:
+        if transaction_type in ('selling', 'balance'):
+            await rollback_selling(transaction_id, stock_id)
+        elif transaction_type == 'replenishment':
+            await rollback_replenishment(transaction_id)
+        elif transaction_type == 'writeoff':
+            await rollback_writeoff(transaction_id)
+    except:
+        await message.bot.edit_message_text(chat_id=chat_id,
+                                            message_id=message_id,
+                                            text='❗️ <b>НЕВОЗМОЖНО ОТКАТИТЬ ТРАНЗАКЦИЮ</b>',
+                                            reply_markup=kb.transaction_rollback_menu(transaction_id),
+                                            parse_mode='HTML')
+        return None
+    
+    # возвращаемся в меню выбора транзакции
+    outlet_id = data['outlet_id']
+    product_id = data['product_id']
+    
+    stock_data = await get_stock_product(outlet_id, product_id)
+    stock_id = stock_data['stock_id']
+    product_unit = stock_data['product_unit']
+    
+    transactions_data = await transactions_info(outlet_id, stock_id)
+    
+    await message.bot.edit_message_text(chat_id=chat_id,
+                                        message_id=message_id,
+                                        text='❓ <b>ВЫБЕРИТЕ ТРАНЗАКЦИЮ</b>',
+                                        reply_markup=kb.choose_transaction(transactions_data, product_unit, product_id, page=1),
                                         parse_mode='HTML')
