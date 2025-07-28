@@ -16,6 +16,19 @@ async def outlet_menu_text(data, state):
     # Для начала обновляем контекст, для актуализации данных из базы
     outlet_id = data['outlet_id']
     outlet_data = await get_outlet(outlet_id=outlet_id)
+    
+    # сохраняем отчет если он есть и если нет, ставим None
+    if not 'report' in list(data.keys()):
+        report = {
+                'purchases': None,
+                'revenue': None,
+                'note': None
+                }
+        
+        await state.update_data(report=report)
+    else:
+        report = data['report']
+    
     await state.clear()
     data_refreshed = {
         'outlet_id': outlet_data.outlet_id,
@@ -23,7 +36,8 @@ async def outlet_menu_text(data, state):
         'outlet_descr': outlet_data.outlet_descr,
         'outlet_arch': outlet_data.outlet_arch,
         'message_id': data['message_id'],
-        'chat_id': data['chat_id']
+        'chat_id': data['chat_id'],
+        'report': report
         }
     await state.update_data(data_refreshed)
     

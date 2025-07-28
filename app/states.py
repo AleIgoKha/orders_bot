@@ -66,3 +66,9 @@ class Stats(StatesGroup):
 class Transaction(StatesGroup):
     time = State()
     rollback = State()
+    
+    
+class Report(StatesGroup):
+    purchases = State()
+    revenue = State()
+    note = State()

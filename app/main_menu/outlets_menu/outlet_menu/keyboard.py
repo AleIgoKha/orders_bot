@@ -3,7 +3,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # меню сессии
 outlet_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data='outlet:balance')],
+    [InlineKeyboardButton(text='📝 Отчет', callback_data='outlet:report_menu')],
+    # [InlineKeyboardButton(text='🧮 Расчет по остаткам', callback_data='outlet:balance')],
     # [InlineKeyboardButton(text='🧰 Операции над товарами', callback_data='outlet:operations')],
     [InlineKeyboardButton(text='📦 Запасы', callback_data='outlet:stock')],
     [InlineKeyboardButton(text='📈 Статистика', callback_data='outlet:statistics')],
@@ -14,10 +15,10 @@ outlet_menu = InlineKeyboardMarkup(inline_keyboard=[
 
 # Настройки сессии
 settings_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='📋 Изменить название сессии', callback_data='outlet:change_name')],
-    [InlineKeyboardButton(text='📝 Изменить описание сессии', callback_data='outlet:change_descr')],
-    [InlineKeyboardButton(text='🗄 Архивировать сессию', callback_data='outlet:status')],
-    [InlineKeyboardButton(text='🗑 Удалить сессию', callback_data='outlet:delete_outlet')],
+    [InlineKeyboardButton(text='📋 Изменить название торговой точки', callback_data='outlet:change_name')],
+    [InlineKeyboardButton(text='📝 Изменить описание торговой точки', callback_data='outlet:change_descr')],
+    [InlineKeyboardButton(text='🗄 Архивировать торговую точку', callback_data='outlet:status')],
+    # [InlineKeyboardButton(text='🗑 Удалить торговую точку', callback_data='outlet:delete_outlet')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:back')]
 ])
 
