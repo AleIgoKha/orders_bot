@@ -779,7 +779,8 @@ async def choose_transaction_product_handler(callback: CallbackQuery, state: FSM
         page = data['page']
         
     # сохраняем страницу для удобства при возвращении
-    await state.update_data(page=page)
+    await state.update_data(added_pieces=[],
+                            page=page)
     
     outlet_id = data['outlet_id']
     product_id = data['product_id']
