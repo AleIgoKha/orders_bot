@@ -24,6 +24,7 @@ from app.main_menu.outlets_menu.outlet_menu.outlet_menu import outlet_menu
 from app.main_menu.outlets_menu.outlet_menu.outlet_operations.outlet_operations import outlet_operations
 from app.main_menu.outlets_menu.outlet_menu.stock_menu.stock_menu import stock_menu
 from app.main_menu.outlets_menu.outlet_menu.outlet_statistics.outlet_statistics import outlet_statistics
+from app.main_menu.outlets_menu.outlet_menu.report_menu.report_menu import report_menu
 
 from app.database.models import async_main
 from app.middlewares import MessagesRemover, OutOfPagesAnswer
@@ -51,6 +52,7 @@ async def main():
                        outlet_operations,
                        stock_menu,
                        outlet_statistics,
+                       report_menu,
                        messages_remover)
     dp.startup.register(on_startup)
     await dp.start_polling(bot)

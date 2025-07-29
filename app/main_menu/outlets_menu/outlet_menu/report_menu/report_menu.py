@@ -1,29 +1,32 @@
-import pytz
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from datetime import datetime
+from aiogram.exceptions import TelegramBadRequest
 from decimal import Decimal
+from datetime import datetime
+import pytz
 
-import app.main_menu.outlets_menu.outlet_menu.outlet_statistics.keyboard as kb
-from app.database.all_requests.transactions import get_expected_revenue, were_stock_transactions, balance_transactions_number
-from app.database.all_requests.reports import is_there_report, get_report_data
-from app.database.all_requests.stock import get_active_stock_products
-from app.database.all_requests.reports import save_report
-from app.com_func import localize_user_input
+import app.main_menu.outlets_menu.outlet_menu.report_menu.keyboard as kb
 from app.states import Report
+from app.database.all_requests.stock import get_active_stock_products, get_stock_product
+from app.database.all_requests.reports import save_report, is_there_report
+from app.database.all_requests.outlet import get_outlet
+from app.database.all_requests.transactions import were_stock_transactions, balance_transactions_number_today
+from app.main_menu.outlets_menu.outlet_menu.outlet_menu import outlet_menu_handler
+from app.com_func import represent_utc_3, localize_user_input
 
-outlet_statistics = Router()
+report_menu = Router()
 
 
-def report_menu_text(report):   
+def report_menu_text(report):
+    
+    today = datetime.now(pytz.timezone('Europe/Chisinau'))
+    
     purchases = report['purchases']
     revenue = report['revenue']
     note = report['note']
-    report_datetime = report['report_datetime']
-    report_datetime = datetime(**report_datetime)
     
-    text = f'<b>ОТЧЕТ ЗА {report_datetime.strftime("%d-%m-%Y")}</b>\n\n'
+    text = f'<b>ОТЧЕТ ЗА {today.strftime("%d-%m-%Y")}</b>\n\n'
     
     if any((purchases, revenue, note)):
         if not purchases is None:
@@ -43,138 +46,42 @@ def report_menu_text(report):
     return text
 
 
-# меню статистики
-@outlet_statistics.callback_query(F.data == 'outlet:statistics')
-async def stats_menu_handler(callback: CallbackQuery):
-    await callback.message.edit_text(text='❓ <b>ВЫБЕРИТЕ ВИД СТАТИСТИКИ</b>',
-                                     reply_markup=kb.stats_menu,
-                                     parse_mode='HTML')
-
-
-# меню выбора дня для экспресс статистики
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:express')
-@outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:prev:'))
-@outlet_statistics.callback_query(F.data.startswith('outlet:statistics:month:next:'))
-async def outlet_statistics_handler(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    outlet_id = data['outlet_id']
-    
-    # избавляемся от данных об отчете на случай, если кнопки назад
-    if 'report' in list(data.keys()):
-        del data['report']
-        await state.clear()
-        await state.update_data(**data)
-    
-    now = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
-    year = now.year
-    month = now.month
-    # Переключаем месяца вперед и назад
-    if callback.data.startswith('outlet:statistics:month:'):
-        calendar_data = callback.data.split(':')
-        if calendar_data[3] == 'prev':
-            year = int(calendar_data[4])
-            month = int(calendar_data[5]) - 1
-            if month < 1:
-                month = 12
-                year -= 1
-        elif calendar_data[3] == 'next':
-            year = int(calendar_data[4])
-            month = int(calendar_data[5]) + 1
-            if month > 12:
-                month = 1
-                year += 1
-        await callback.message.edit_reply_markup(reply_markup=await kb.calendar_keyboard(outlet_id, year, month))
-    else:
-        await callback.message.edit_text(text=f'❓ <b>УКАЖИТЕ ДАТУ СТАТИСТИКИ</b>\n\n',
-                                        reply_markup=await kb.calendar_keyboard(outlet_id, year, month),
-                                        parse_mode='HTML')
-        
-
-# заходим в статистику дня
-@outlet_statistics.callback_query(F.data.startswith('outlet:statistics:date:'))
-async def outlet_statistics_date_handler(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    
-    outlet_id = data['outlet_id']
-    
-    date_comp = [int(_) for _ in callback.data.split(':')[-3:]]
-    finished_datetime = datetime(year=date_comp[0],
-                            month=date_comp[1],
-                            day=date_comp[2])
-    
-    check_flag = await is_there_report(outlet_id, finished_datetime)
-    
-    # если отчета в выбранный день не существует, то предлагаем его создать
-    if not check_flag:
-        await callback.message.edit_text(text='В этот день нет отчета. Для создания нажмите <b>Создать отчет</b>',
-                                         reply_markup=kb.report_creation,
-                                         parse_mode='HTML')
-        await state.update_data(report={'report_datetime': {'year': date_comp[0],
-                                                            'month':date_comp[1],
-                                                            'day':date_comp[2]},
-                                        'revenue': None,
-                                        'purchases': None,
-                                        'note': None})
-        return None
-    
-    report_data = await get_report_data(outlet_id, finished_datetime)
-    
-    report_id = report_data['report_id']
-    purchases = report_data['report_purchases']
-    revenue = round(report_data['report_revenue'], 2)
-    note = report_data['report_note']
-    expected_revenue = round(await get_expected_revenue(outlet_id, finished_datetime), 2)
-    revenue_difference = revenue - expected_revenue
-    revenue_difference_percent = round(((revenue - expected_revenue) * 100) / expected_revenue, 2)
-    
-    text = f'📝 <b>ОТЧЕТ №{report_id} ЗА {finished_datetime.strftime('%d-%m-%Y')}</b>\n\n' \
-            '💵 <b>Выручка:</b>\n' \
-            f'Расчетная - <b>{expected_revenue} руб</b>\n' \
-            f'Фактическая - <b>{revenue} руб</b>\n' \
-            f'Разница  - <b>{revenue_difference} руб ({revenue_difference_percent}%)</b>\n\n' \
-            f'🧾 <b>Количество покупок - {purchases}</b>\n\n' \
-            f'✍️ <b>Примечание:</b>\n - {note}' \
-    
-    # на случай, если захочу изменить
-    await state.update_data(report={'report_datetime': {'year': date_comp[0],
-                                                        'month':date_comp[1],
-                                                        'day':date_comp[2]},
-                                    'revenue': str(revenue),
-                                    'purchases': purchases,
-                                    'note': note})
-            
-    await callback.message.edit_text(text=text,
-                                     reply_markup=kb.back_button,
-                                     parse_mode='HTML')
-    
-
-# меню создания отчета
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:amend_report')
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report')
-async def create_report_statistics_handler(callback: CallbackQuery, state: FSMContext):
+# меню отчета
+@report_menu.callback_query(F.data == 'outlet:report_menu')
+async def report_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
     
     report = data['report']
+    outlet_id = data['outlet_id']
+    
+    date_time = datetime.now(pytz.timezone('Europe/Chisinau'))
+    
+    check_flag = await is_there_report(outlet_id, date_time)
+    
+    if check_flag:
+        await callback.answer(text='Невозможно создать отчет повторно', show_alert=True)
+        return None
     
     text = report_menu_text(report)
     
     await callback.message.edit_text(text=text,
-                                     reply_markup=kb.report_menu(report),
+                                     reply_markup=await kb.report_menu(outlet_id, report),
                                      parse_mode='HTML')
+    
 
 # просим указать количество чеков
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report:purchases')
+@report_menu.callback_query(F.data == 'outlet:report_menu:purchases')
 async def purchases_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='<b>Укажите общее количество покупок в течение торгового дня</b>\n\n'
                                             'Формат ввода предполагает использование цифр: <i>123</i>',
                                      reply_markup=kb.cancel_button,
                                      parse_mode='HTML')
-    await state.set_state(Report.purchases_only)
+    await state.set_state(Report.purchases)
     
 
 # принимаем количество покупок
-@outlet_statistics.message(Report.purchases_only)
+@report_menu.message(Report.purchases)
 async def purchases_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
@@ -184,7 +91,7 @@ async def purchases_receiver_handler(message: Message, state: FSMContext):
     # проверяем на тип данных
     if not purchases.isdigit():
         # если не целое число, то ничего не происходит
-        await state.set_state(Report.purchases_only)
+        await state.set_state(Report.purchases)
         return None
     
     # если целое число без лишних знаков, то сохраняем в контекст
@@ -207,22 +114,22 @@ async def purchases_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu(report),
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
 # просим указать сумму выручки за день
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report:revenue')
+@report_menu.callback_query(F.data == 'outlet:report_menu:revenue')
 async def revenue_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='<b>Укажите сумму выручки</b>\n\n'
                                             'Формат ввода предполагает использование цифр с десятичным разделителем: <i>123.45</i>',
                                      reply_markup=kb.cancel_button,
                                      parse_mode='HTML')
-    await state.set_state(Report.revenue_only)
+    await state.set_state(Report.revenue)
 
 
 # принимаем сумму выручки
-@outlet_statistics.message(Report.revenue_only)
+@report_menu.message(Report.revenue)
 async def revenue_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
@@ -234,7 +141,7 @@ async def revenue_receiver_handler(message: Message, state: FSMContext):
         revenue = str(Decimal(message.text.replace(',', '.')))
     except:
         # если формат ввода не подходит, то ничего не делаем
-        await state.set_state(Report.revenue_only)
+        await state.set_state(Report.purchases)
         return None
     
     # если формат подходит, то сохраняем в контекст
@@ -256,12 +163,12 @@ async def revenue_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu(report),
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
 # просим указать примечание к отчету 
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report:note')
+@report_menu.callback_query(F.data == 'outlet:report_menu:note')
 async def revenue_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(text='<b>Укажите дополнительную информацию касаемо торгового дня.\n\n'
                                             'Опишите следующее:</b>\n' \
@@ -270,11 +177,11 @@ async def revenue_handler(callback: CallbackQuery, state: FSMContext):
                                             '3. Что-либо, что необходимо знать и учесть',
                                      reply_markup=kb.cancel_button,
                                      parse_mode='HTML')
-    await state.set_state(Report.note_only)
+    await state.set_state(Report.note)
 
 
 # принимаем примечание к отчету
-@outlet_statistics.message(Report.note_only)
+@report_menu.message(Report.note)
 async def note_receiver_handler(message: Message, state: FSMContext):
     await state.set_state(None)
     data = await state.get_data()
@@ -291,6 +198,7 @@ async def note_receiver_handler(message: Message, state: FSMContext):
 
     chat_id = data['chat_id']
     message_id = data['message_id']
+    outlet_id = data['outlet_id']
     
     report = data['report']
     
@@ -299,25 +207,41 @@ async def note_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu(report),
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
 # просим подтверждения на сохранение отчета
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report:send_report')
+@report_menu.callback_query(F.data == 'outlet:report_menu:send_report')
 async def send_report_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     report = data['report']
-    report_datetime = report['report_datetime']
-    report_datetime = datetime(**report_datetime)
+    outlet_id = data['outlet_id']
+    today = datetime.now(pytz.timezone('Europe/Chisinau'))
+    
+    # количество транзакций по указанию остатка должно быть равно количеству товаров с нулевым 
+    balance = None
+    stock_data = await get_active_stock_products(outlet_id)
+    # проверяем в первую очередь били ли транзакции за день с товаром, если не было то проверяем баланс для отображения
+    # если транзакции не было, то вовдим если баланс больше нуля, если транзакция была, то выводим в любом случае
+    # таким образом будут выведены все товары, с которыми была или могла быть проведена транзакция
+    stock_data = [stock for stock in stock_data if await were_stock_transactions(stock['stock_id'],
+                                                                                 today,
+                                                                                 ['balance'])
+                                                or  stock['stock_qty'] != 0]
+    
+    transactions_number = await balance_transactions_number_today(outlet_id)
+    
+    if len(stock_data) == transactions_number:
+        balance = True
     
     purchases = report['purchases']
     revenue = report['revenue']
     note = report['note']
     
     # сначала проверяем были ли заполнены все данные, в противном случае не даем отправить отчет
-    if not all((purchases, revenue, note)):
+    if not all((balance, purchases, revenue, note)):
         await callback.answer(text='Не все данные были заполнены', show_alert=True)
         return None
     
@@ -327,17 +251,14 @@ async def send_report_handler(callback: CallbackQuery, state: FSMContext):
     
 
 # При подтверждении отправки отчета создаем его и выходим в меню торговой точки
-@outlet_statistics.callback_query(F.data == 'outlet:statistics:create_report:send_report:confirm')
+@report_menu.callback_query(F.data == 'outlet:report_menu:send_report:confirm')
 async def confirm_send_report_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     outlet_id = data['outlet_id']
     report = data['report']
-    report_datetime = report['report_datetime']
-    report_datetime = datetime(**report_datetime)
     
     report_data = {
-        'report_datetime': localize_user_input(report_datetime),
         'outlet_id': outlet_id,
         'report_purchases': report['purchases'],
         'report_revenue': Decimal(report['revenue']),
@@ -349,7 +270,15 @@ async def confirm_send_report_handler(callback: CallbackQuery, state: FSMContext
     except:
         await callback.answer(text='Невозможно отправить отчет', show_alert=True)
         return None
+
+    # удаляем данные об отчете
+    report = {
+            'purchases': None,
+            'revenue': None,
+            'note': None
+            }
+    await state.update_data(report=report)
     
     # переходим в меню торговой точки
-    await outlet_statistics_handler(callback, state)
+    await outlet_menu_handler(callback, state)
     await callback.answer(text='Отчет успешно отправлен', show_alert=True)

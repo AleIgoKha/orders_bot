@@ -92,6 +92,7 @@ class Outlet(Base):
     
     stocks: Mapped[list["Stock"]] = relationship(back_populates="outlet", cascade="all, delete-orphan")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="outlet", cascade="all, delete-orphan")
+    reports: Mapped[list["Report"]] = relationship(back_populates="outlet", cascade="all, delete-orphan")
     
 class Stock(Base):
     __tablename__ = 'stocks'
@@ -123,6 +124,19 @@ class Transaction(Base):
     transaction_note: Mapped[str | None] = mapped_column(String, nullable=True)
     
     outlet: Mapped["Outlet"] = relationship(back_populates="transactions")
+    
+    
+class Report(Base):
+    __tablename__ = 'reports'
+    
+    report_id: Mapped[int] = mapped_column(primary_key=True)
+    outlet_id: Mapped[int] = mapped_column(ForeignKey('outlets.outlet_id', ondelete='CASCADE'))
+    report_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    report_purchases: Mapped[int] = mapped_column(Integer)
+    report_revenue: Mapped[Decimal] = mapped_column(Numeric(9, 2))
+    report_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    outlet: Mapped["Outlet"] = relationship(back_populates="reports")
 
 async def async_main():
     async with engine.begin() as conn:
