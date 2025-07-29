@@ -1,3 +1,4 @@
+import pytz
 from functools import wraps
 from contextlib import asynccontextmanager
 from sqlalchemy import select, update, delete, func, desc, extract
@@ -475,3 +476,51 @@ async def transaction_info(session, transaction_id):
         transaction_data = None
     
     return transaction_data
+
+
+
+# число транзакций остатка за день
+@with_session()
+async def balance_transactions_number_today(session, outlet_id):
+    start, end = get_utc_day_bounds(datetime.now(pytz.timezone('Europe/Chisinau')))
+    
+    stmt = select(func.count(Transaction.transaction_id)) \
+            .where(Transaction.transaction_type == 'balance',
+                   Transaction.outlet_id == outlet_id,
+                   Transaction.transaction_datetime >= start,
+                   Transaction.transaction_datetime < end)
+    
+    number = await session.scalar(stmt)
+    
+    return number or 0
+
+# число транзакций остатка за день
+@with_session()
+async def balance_transactions_number(session, outlet_id, date_time):
+    start, end = get_utc_day_bounds(date_time)
+    
+    stmt = select(func.count(Transaction.transaction_id)) \
+            .where(Transaction.transaction_type == 'balance',
+                   Transaction.outlet_id == outlet_id,
+                   Transaction.transaction_datetime >= start,
+                   Transaction.transaction_datetime < end)
+    
+    number = await session.scalar(stmt)
+    
+    return number or 0
+
+
+# информация о транзакциях товара в торговой точке
+@with_session()
+async def get_expected_revenue(session, outlet_id, date_time):
+    start, end = get_utc_day_bounds(date_time)
+    
+    stmt = select(func.sum(Transaction.transaction_product_price * Transaction.product_qty)) \
+            .where(Transaction.transaction_type == 'balance',
+                   Transaction.outlet_id == outlet_id,
+                   Transaction.transaction_datetime >= start,
+                   Transaction.transaction_datetime < end)
+    
+    expected_revenue = await session.scalar(stmt)
+    
+    return expected_revenue

@@ -2,13 +2,12 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import date, datetime
 from calendar import monthrange
 
-from app.database.all_requests.transactions import were_outlet_transactions
+from app.database.all_requests.reports import is_there_report
 
 
 # меню статистики
 stats_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🚀 Экспресс', callback_data='outlet:statistics:express')],
-    # [InlineKeyboardButton(text='📊 Продажи за 1 день', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/4exGEz5MBVm/')],
+    [InlineKeyboardButton(text='📝 Отчеты за день', callback_data='outlet:statistics:express')],
     [InlineKeyboardButton(text='📈 Продажи за 7 дней', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/4exGEz5MBVm/')],
     [InlineKeyboardButton(text='📖 Продажи за все время', url='https://apache-superset-production.up.railway.app/superset/dashboard/p/Yo7DWqLML8d/')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:back')]
@@ -52,11 +51,11 @@ async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardM
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
                 day_text = str(day_counter)
-                sellings_check_flag = await were_outlet_transactions(outlet_id, datetime(year, month, day_counter), ['balance', 'selling'])                 
+                check_flag = await is_there_report(outlet_id, datetime(year, month, day_counter))
                 if day_counter == date.today().day and month == date.today().month and year == date.today().year:
                     day_text = '🌞'
                 # если за день были продающие транзакции, то ставим галочку возле даты
-                if sellings_check_flag:
+                if check_flag:
                     day_text += ' ✔️'
                 callback_data = f"outlet:statistics:date:{year}:{month}:{day_counter}"
                 row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
@@ -77,5 +76,61 @@ async def calendar_keyboard(outlet_id, year: int, month: int) -> InlineKeyboardM
 
 # кнопка назад для выхода из статистики
 back_button = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✍️ Изменить отчет', callback_data='outlet:statistics:amend_report')],
     [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics:express')]
+])
+
+# меню создания отчета
+report_creation = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='📝 Создать отчет', callback_data='outlet:statistics:create_report')],
+    [InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics:express')]
+])
+
+
+# меню создания отчета
+def report_menu(report):
+    
+    inline_keyboard = []
+  
+    # проверяем наличие указанного количества чеков
+    button_text = ''
+    purchases = report['purchases']
+    if not purchases is None:
+        button_text = ' ✅'
+            
+    inline_keyboard.append([InlineKeyboardButton(text=f'🧾 Количество чеков{button_text}', callback_data='outlet:statistics:create_report:purchases')])
+    
+    # проверяем наличие указанной выручки
+    button_text = ''
+    revenue = report['revenue']
+    if not revenue is None:
+        button_text = ' ✅'
+        
+    inline_keyboard.append([InlineKeyboardButton(text=f'💵 Сумма выручки{button_text}', callback_data='outlet:statistics:create_report:revenue')])
+    
+    # проверяем наличие указанного примечания
+    button_text = ''      
+    note = report['note']
+    if not note is None:
+        button_text = ' ✅'
+
+    inline_keyboard.append([InlineKeyboardButton(text=f'✍️ Примечание{button_text}', callback_data='outlet:statistics:create_report:note')])
+    
+    button_text = ''
+    inline_keyboard.append([InlineKeyboardButton(text='◀️ Назад', callback_data='outlet:statistics:express'),
+                            InlineKeyboardButton(text='☑️ Отправить', callback_data='outlet:statistics:create_report:send_report')])
+    
+    return  InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
+
+
+# кнопка отмены
+cancel_button = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:statistics:create_report')]
+
+])
+
+# подтвердить создание отчета
+confirm_report = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:statistics:create_report'),
+    InlineKeyboardButton(text='✅ Подтвердить', callback_data='outlet:statistics:create_report:send_report:confirm')]
 ])

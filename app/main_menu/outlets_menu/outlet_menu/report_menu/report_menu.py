@@ -9,8 +9,9 @@ import pytz
 import app.main_menu.outlets_menu.outlet_menu.report_menu.keyboard as kb
 from app.states import Report
 from app.database.all_requests.stock import get_active_stock_products, get_stock_product
-from app.database.all_requests.reports import save_report
+from app.database.all_requests.reports import save_report, is_there_report
 from app.database.all_requests.outlet import get_outlet
+from app.database.all_requests.transactions import were_stock_transactions, balance_transactions_number_today
 from app.main_menu.outlets_menu.outlet_menu.outlet_menu import outlet_menu_handler
 from app.com_func import represent_utc_3, localize_user_input
 
@@ -52,11 +53,20 @@ async def report_menu_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     report = data['report']
+    outlet_id = data['outlet_id']
+    
+    date_time = datetime.now(pytz.timezone('Europe/Chisinau'))
+    
+    check_flag = await is_there_report(outlet_id, date_time)
+    
+    if check_flag:
+        await callback.answer(text='Невозможно создать отчет повторно', show_alert=True)
+        return None
     
     text = report_menu_text(report)
     
     await callback.message.edit_text(text=text,
-                                     reply_markup=kb.report_menu,
+                                     reply_markup=await kb.report_menu(outlet_id, report),
                                      parse_mode='HTML')
     
 
@@ -95,6 +105,7 @@ async def purchases_receiver_handler(message: Message, state: FSMContext):
 
     chat_id = data['chat_id']
     message_id = data['message_id']
+    outlet_id = data['outlet_id']
     
     report = data['report']
     
@@ -103,7 +114,7 @@ async def purchases_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu,
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
@@ -143,6 +154,7 @@ async def revenue_receiver_handler(message: Message, state: FSMContext):
 
     chat_id = data['chat_id']
     message_id = data['message_id']
+    outlet_id = data['outlet_id']
     
     report = data['report']
     
@@ -151,7 +163,7 @@ async def revenue_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu,
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
@@ -186,6 +198,7 @@ async def note_receiver_handler(message: Message, state: FSMContext):
 
     chat_id = data['chat_id']
     message_id = data['message_id']
+    outlet_id = data['outlet_id']
     
     report = data['report']
     
@@ -194,13 +207,44 @@ async def note_receiver_handler(message: Message, state: FSMContext):
     await message.bot.edit_message_text(chat_id=chat_id,
                                         message_id=message_id,
                                         text=text,
-                                        reply_markup=kb.report_menu,
+                                        reply_markup=await kb.report_menu(outlet_id, report),
                                         parse_mode='HTML')
     
 
 # просим подтверждения на сохранение отчета
 @report_menu.callback_query(F.data == 'outlet:report_menu:send_report')
-async def send_report_handler(callback: CallbackQuery):
+async def send_report_handler(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    
+    report = data['report']
+    outlet_id = data['outlet_id']
+    today = datetime.now(pytz.timezone('Europe/Chisinau'))
+    
+    # количество транзакций по указанию остатка должно быть равно количеству товаров с нулевым 
+    balance = None
+    stock_data = await get_active_stock_products(outlet_id)
+    # проверяем в первую очередь били ли транзакции за день с товаром, если не было то проверяем баланс для отображения
+    # если транзакции не было, то вовдим если баланс больше нуля, если транзакция была, то выводим в любом случае
+    # таким образом будут выведены все товары, с которыми была или могла быть проведена транзакция
+    stock_data = [stock for stock in stock_data if await were_stock_transactions(stock['stock_id'],
+                                                                                 today,
+                                                                                 ['balance'])
+                                                or  stock['stock_qty'] != 0]
+    
+    transactions_number = await balance_transactions_number_today(outlet_id)
+    
+    if len(stock_data) == transactions_number:
+        balance = True
+    
+    purchases = report['purchases']
+    revenue = report['revenue']
+    note = report['note']
+    
+    # сначала проверяем были ли заполнены все данные, в противном случае не даем отправить отчет
+    if not all((balance, purchases, revenue, note)):
+        await callback.answer(text='Не все данные были заполнены', show_alert=True)
+        return None
+    
     await callback.message.edit_text(text='Чтобы отправить отчет, нажмите <b>Подтвердить</b>',
                                      reply_markup=kb.confirm_report,
                                      parse_mode='HTML')

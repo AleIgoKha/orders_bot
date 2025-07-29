@@ -236,7 +236,7 @@ async def choose_product_balance(stock_data: list, page: int = 1, products_per_p
             InlineKeyboardButton(text="⬅️ Назад", callback_data="outlet:balance:page_edge")
         )
     
-    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:back'))
+    navigation_buttons.append(InlineKeyboardButton(text='❌ Отмена', callback_data='outlet:report_menu'))
     
     if end < len(stock_data):
         navigation_buttons.append(

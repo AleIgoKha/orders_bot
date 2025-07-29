@@ -72,3 +72,6 @@ class Report(StatesGroup):
     purchases = State()
     revenue = State()
     note = State()
+    purchases_only = State()
+    revenue_only = State()
+    note_only = State()
