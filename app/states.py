@@ -17,22 +17,6 @@ class Session(StatesGroup):
     change_description = State()
     delete = State()
     
-
-class Outlet(StatesGroup):
-    name = State()
-    change_name = State()
-    description = State()
-    change_description = State()
-    delete = State()
-    
-    
-class Stock(StatesGroup):
-    replenishment = State()
-    writeoff = State()
-    selling = State()
-    balance = State()
-    rollback_balance = State()
-    
     
 class Order(StatesGroup):
     client_phone = State()
@@ -59,19 +43,3 @@ class Item(StatesGroup):
     item_qty_fact = State() # Количество при обработке товара
     change_item_qty = State() # Количество при изменении веса товара в заказе
     item_qty = State() # Количество при добавлении нового товара в заказ
-      
-class Stats(StatesGroup):
-    date = State()
-    
-class Transaction(StatesGroup):
-    time = State()
-    rollback = State()
-    
-    
-class Report(StatesGroup):
-    purchases = State()
-    revenue = State()
-    note = State()
-    purchases_only = State()
-    revenue_only = State()
-    note_only = State()
