@@ -84,14 +84,6 @@ async def is_there_report(session, outlet_id, date_time):
                    Report.report_datetime < end_of_day)
                
     result = await session.scalar(stmt)
-    
-    date = await session.scalar(select(Report.report_datetime) \
-                                .where(Report.outlet_id == outlet_id,
-                                    Report.report_datetime >= start_of_day,
-                                    Report.report_datetime < end_of_day))
-    
-    if not date is None:
-        print(date_time, start_of_day, date, end_of_day)
             
     return result
 
