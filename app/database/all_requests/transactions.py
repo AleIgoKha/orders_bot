@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from decimal import Decimal
 from datetime import datetime
 
-from app.database.models import async_session, Transaction, Stock, Product
+from app.database.models import async_session, Transaction, Stock
 from app.com_func import get_utc_day_bounds
 
 
@@ -47,7 +47,7 @@ async def get_last_transaction(session, outlet_id, stock_id):
     
     max_datetime = select(func.max(Transaction.transaction_datetime)) \
                     .where(Transaction.outlet_id == outlet_id,
-                            Transaction.stock_id == stock_id)
+                            Transaction.stock_id == stock_id).scalar_subquery()
     
     stmt = select(Transaction) \
             .where(Transaction.outlet_id == outlet_id,
@@ -120,7 +120,7 @@ async def transaction_replenish(session, outlet_id, product_id, product_qty, add
         raise ValueError("Replenishment quantity must be positive.")
     
     stock_data = await session.scalar(
-        select(Stock, Product)
+        select(Stock)
         .options(selectinload(Stock.product))
         .where(Stock.outlet_id == outlet_id, Stock.product_id == product_id)
         .with_for_update()

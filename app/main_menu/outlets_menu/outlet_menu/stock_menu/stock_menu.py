@@ -119,18 +119,32 @@ async def writeoff_text(outlet_id, product_id, added_pieces):
 
 
 # функция для формирования сообщения меню запасов
-def stock_list_text(stock_products_data):
-    text = '📦 <b>ЗАПАСЫ</b>\n\n'
+async def stock_list_text(stock_products_data):
+    text = '📦 <b>ЗАПАСЫ</b>\n'
     
     for stock_product_data in stock_products_data:
+        stock_id = stock_product_data['stock_id']
         product_name = stock_product_data['product_name']
         stock_qty = stock_product_data['stock_qty']
         product_unit = stock_product_data['product_unit']
+        outlet_id = stock_product_data['outlet_id']
+        
+        last_transaction = await get_last_transaction(outlet_id, stock_id)
+        
+        transaction_type = last_transaction['transaction_type']
+        transaction_info = last_transaction['transaction_info']
         
         if product_unit != 'кг':
             stock_qty = round(stock_qty)
         
-        text += f'{product_name} - <b>{stock_qty} {product_unit}</b>\n'
+        parts_text = ''
+        if transaction_type == 'balance':
+            transaction_info = [f'{round(part * 1000 if product_unit == 'кг' else part)}' for part in transaction_info]
+            parts_text = f' ({', '.join(transaction_info)})'
+        
+        text += f'\n🧀 {product_name} - <b>{stock_qty} {product_unit}{parts_text}</b>\n'
+
+    text += '<i>\n* - Части товара видно только после фиксации остатков в граммах или штуках</i>'
     
     return text
 
@@ -142,9 +156,9 @@ async def stock_menu_handler(callback: CallbackQuery, state: FSMContext):
     
     outlet_id = data['outlet_id']
     
-    stock_products_data = await get_active_stock_products(outlet_id) 
+    stock_products_data = await get_active_stock_products(outlet_id)
     
-    text = stock_list_text(stock_products_data)
+    text = await stock_list_text(stock_products_data)
     
     await callback.message.edit_text(text=text,
                                      reply_markup=kb.stock_menu,
