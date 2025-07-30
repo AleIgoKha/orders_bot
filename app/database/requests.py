@@ -1,7 +1,6 @@
-from app.database.models import async_session, Product, Session, Order, Item, Outlet, Stock
+from app.database.models import async_session, Product, Session, Order, Item
 
-from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer, extract
-from sqlalchemy.orm import joinedload
+from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
 from decimal import Decimal
 from datetime import datetime
 from app.com_func import get_utc_day_bounds
@@ -26,12 +25,6 @@ async def add_product(session, product_data):
 async def add_session(session, session_data):
     session.add(Session(**session_data))
     await session.commit()
-    
-    
-@connection
-async def add_outlet(session, outlet_data):
-    session.add(Outlet(**outlet_data))
-    await session.commit()    
 
 
 @connection
@@ -81,21 +74,9 @@ async def get_sessions(session):
 
 
 @connection
-async def get_outlets(session):
-    result = await session.scalars(select(Outlet).order_by(asc(Outlet.outlet_name)))
-    return result.all()
-
-
-@connection
 async def get_session(session, session_id):
     order_session = await session.scalar(select(Session).where(Session.session_id == session_id))
     return order_session
-
-
-@connection
-async def get_outlet(session, outlet_id):
-    outlet_data = await session.scalar(select(Outlet).where(Outlet.outlet_id == outlet_id))
-    return outlet_data
 
 
 @connection
@@ -228,13 +209,6 @@ async def change_session_data(session, session_id, session_data):
     await session.commit()
 
 
-# изменение данных торговой точки
-@connection
-async def change_outlet_data(session, outlet_id, outlet_data):
-    await session.execute(update(Outlet).where(Outlet.outlet_id == outlet_id).values(outlet_data))
-    await session.commit()
-
-
 @connection
 async def change_item_data(session, item_id, item_data):
     await session.execute(update(Item).where(Item.item_id == item_id).values(item_data))
@@ -298,13 +272,6 @@ async def delete_product(session, product_id):
 @connection
 async def delete_session(session, session_id):
     await session.execute(delete(Session).where(Session.session_id == session_id))
-    await session.commit()
- 
-    
-# удаление торговой точки
-@connection
-async def delete_outlet(session, outlet_id):
-    await session.execute(delete(Outlet).where(Outlet.outlet_id == outlet_id))
     await session.commit()
 
 

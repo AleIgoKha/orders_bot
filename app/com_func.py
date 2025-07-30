@@ -19,22 +19,6 @@ def get_utc_day_bounds(date_time: datetime):
     return start_of_day, end_of_day
 
 
-# # границы начала и конца дня
-# def get_chisinau_day_bounds(date_time: datetime):
-#     tz = pytz.timezone("Europe/Chisinau")
-    
-#     # Ensure datetime is timezone-aware in Chisinau
-#     if date_time.tzinfo is None:
-#         date_time = tz.localize(date_time)
-#     else:
-#         date_time = date_time.astimezone(tz)
-    
-#     start_of_day = datetime.combine(date_time.date(), time.min, tzinfo=tz)
-#     end_of_day = start_of_day + timedelta(days=1)
-    
-#     return start_of_day.astimezone(pytz.utc), end_of_day.astimezone(pytz.utc)
-
-
 # функция для локализации инпута и now()
 def localize_user_input(date_time):
     """Used for naive user input: assume it's in Chisinau local time."""
@@ -61,10 +45,6 @@ def vacc_price_counter(item_vacc, qty, unit):
             vacc_price = 5 * qty
         elif qty == 0:
             vacc_price = 0
-        # elif 0 < qty_gramms < 200:
-        #     vacc_price = 5
-        # elif 200 <= qty_gramms < 300:
-        #     vacc_price = 6
         elif 0 < qty_gramms:
             vacc_price = (qty_gramms * 2) / 100
     else:
