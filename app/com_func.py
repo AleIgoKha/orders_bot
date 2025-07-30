@@ -11,7 +11,7 @@ def get_utc_day_bounds(date_time: datetime):
         tz = pytz.timezone("Europe/Chisinau")
         date_time = tz.localize(date_time)
     
-    date_time = datetime(date_time.year, date_time.month, date_time.day, 0, 0)
+    date_time = date_time.replace(hour=0, minute=0, second=0, microsecond=0)
     
     start_of_day = date_time.astimezone(pytz.utc)
     end_of_day = start_of_day + timedelta(days=1)
