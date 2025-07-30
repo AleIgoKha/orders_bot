@@ -59,6 +59,7 @@ async def main():
     
 async def on_startup(*args):
     await async_main()
+    print('The application has started')
 
 if __name__ == '__main__':
     try:
