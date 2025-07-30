@@ -11,12 +11,13 @@ from app.database.models import async_session, Product, Outlet, Stock
 # session context manager
 @asynccontextmanager
 async def get_session():
-    print("📥 Opening DB session")
+    # print("📥 Opening DB session")
     async with async_session() as session:
         try:
             yield session
         finally:
-            print("📤 Closing DB session")
+            pass
+            # print("📤 Closing DB session")
 
 # decorator factory
 def with_session(commit: bool = False):

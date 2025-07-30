@@ -10,7 +10,8 @@ from datetime import datetime
 
 
 load_dotenv()
-engine = create_async_engine(url=os.getenv('DB_URL'), echo=True)
+engine = create_async_engine(url=os.getenv('DB_URL'))
+# engine = create_async_engine(url=os.getenv('DB_URL'), echo=True)
 
 async_session = async_sessionmaker(engine)
 

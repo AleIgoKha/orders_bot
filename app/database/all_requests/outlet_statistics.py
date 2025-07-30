@@ -13,12 +13,13 @@ from app.com_func import get_utc_day_bounds
 # session context manager
 @asynccontextmanager
 async def get_session():
-    print("📥 Opening DB session")
+    # print("📥 Opening DB session")
     async with async_session() as session:
         try:
             yield session
         finally:
-            print("📤 Closing DB session")
+            pass
+            # print("📤 Closing DB session")
 
 
 # decorator factory
