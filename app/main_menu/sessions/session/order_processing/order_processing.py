@@ -321,16 +321,3 @@ async def complete_order_handler(callback: CallbackQuery, state: FSMContext):
         await orders_processing_handler(callback, state)
     else:
         await callback.answer(text='Не все товары были обработаны.', show_alert=True)
-    
-
-
-
-
-
-##################
-# 3. Сделать функции для удаления сессии (и, возможно, для изменения ее данных)
-# 4. Сделать функцию для изменения товаров
-# 5. Удалить базу данных и протестировать все что получилось и исправить ошибки
-# 7. Показать отцу и научить пользоваться
-
-
