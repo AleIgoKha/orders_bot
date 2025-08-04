@@ -363,7 +363,7 @@ async def confirm_delete_item_handler(callback: CallbackQuery, state: FSMContext
 # Запрашиваем подтверждение на удаление заказа
 @order_changing.callback_query(F.data == 'delete_order')
 async def delete_order_handler(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(text='<b>Для удаления заказа введите</b> <i>УДАЛИТЬ</i>',
+    await callback.message.edit_text(text='<b>Для удаления заказа введите</b> <code>УДАЛИТЬ</code>',
                                      parse_mode='HTML',
                                      reply_markup=kb.back_to_change_order_data)
     await state.set_state(Order.delete_order)
@@ -385,7 +385,7 @@ async def confirm_delete_order_handler(message: Message, state: FSMContext):
     else:
         await message.bot.edit_message_text(chat_id=data['chat_id'],
                                             message_id=data['message_id'],
-                                            text='❗ <b>НЕПРАВИЛЬНО ВВЕДЕНЫ ДАННЫЕ!</b> ❗\n\nДля удаления заказа введите:\n<i>УДАЛИТЬ</i>',
+                                            text='❗ <b>НЕПРАВИЛЬНО ВВЕДЕНЫ ДАННЫЕ!</b> ❗\n\nДля удаления заказа введите:\n<code>УДАЛИТЬ</code>',
                                             parse_mode='HTML',
                                             reply_markup=kb.back_to_change_order_data)
 
