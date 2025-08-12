@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
@@ -92,7 +92,7 @@ async def session_menu_handler(callback: CallbackQuery, state: FSMContext):
 @session_menu.callback_query(F.data == 'back_from_order_creation')
 @session_menu.callback_query(F.data == 'back_from_order_processing')
 @session_menu.callback_query(F.data == 'back_from_order_completed')
-async def back_to_session_menu_handler(callback: CallbackQuery, state: FSMContext):
+async def back_to_session_menu_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     
     # # Удаляем все сообщения из меню со списком заказов
@@ -107,15 +107,37 @@ async def back_to_session_menu_handler(callback: CallbackQuery, state: FSMContex
             
     # Если вернулись из загрузки файлов
     if callback.data == 'back_from_order_download':
-        await callback.bot.delete_message(chat_id=data['chat_id'],
-                                          message_id=callback.message.message_id)
         
+        # удаляем все сообщения которые уже были напечатаны
+        redis = bot.redis
+        chat_id = callback.message.chat.id
+        key = f"chat:{chat_id}:messages"
+        message_ids = await redis.lrange(key, 0, -1)  # Get all stored message IDs
+
+        for msg_id in message_ids:
+            try:
+                await bot.delete_message(chat_id, int(msg_id))
+            except Exception:
+                pass  # Ignore errors (e.g., message already deleted)
+
+        await redis.delete(key)  # Clear the stored list
+        await redis.close()
+        
+        # печатаем сообщение и запоминаем его id
         text = await session_menu_text(data, state)
         message = await callback.bot.send_message(chat_id=data['chat_id'],
                                         text=text,
                                         reply_markup=kb.session_menu,
                                         parse_mode='HTML')
+        message_id = message.message_id
+        await redis.rpush(f"chat:{chat_id}:messages", message_id)
+        await redis.close()
+        
         await state.update_data(message_id=message.message_id)
+        
+        
+        
+        
     else:
         data = await state.get_data()
         text = await session_menu_text(data, state)

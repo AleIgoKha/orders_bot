@@ -1,5 +1,18 @@
+import os
 import pytz
 from datetime import datetime, timedelta
+from aiogram.types import Message
+from aiogram.filters import Filter
+from dotenv import load_dotenv
+
+load_dotenv()
+
+admin_list = list(map(int, (os.getenv("ADMINS").split(','))))
+
+
+class User(Filter):
+    async def __call__(self, message: Message):
+        return message.from_user.id in admin_list
 
 
 # границы начала и конца дня
