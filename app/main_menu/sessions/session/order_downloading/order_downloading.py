@@ -1,5 +1,5 @@
 import re
-from aiogram import F, Router
+from aiogram import F, Router, Bot
 from aiogram.types import BufferedInputFile, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.enums import ChatAction
@@ -24,7 +24,7 @@ async def session_downloads_handler(callback: CallbackQuery):
 
 # загружаем список заказов
 @order_downloading.callback_query(F.data == 'download_orders')
-async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
+async def download_orders_handlers(callback: CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     
     # Загружаем все заказы сессии
@@ -144,16 +144,35 @@ async def download_orders_handlers(callback: CallbackQuery, state: FSMContext):
     filename = re.sub(r"[^a-z0-9_]", "", filename)
     
     await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)
-    await callback.bot.send_document(chat_id=data['chat_id'],
+    
+    # удаляем все id всех сообщений в чате
+    redis = bot.redis
+    chat_id = callback.message.chat.id
+    key = f"chat:{chat_id}:messages"
+    message_ids = await redis.lrange(key, 0, -1)  # Get all stored message IDs
+
+    for msg_id in message_ids:
+        try:
+            await bot.delete_message(chat_id, int(msg_id))
+        except Exception:
+            pass  # Ignore errors (e.g., message already deleted)
+
+    await redis.delete(key)  # Clear the stored list
+    await redis.close()
+
+    # печатаем сообщение и сохраняем его id
+    sent_message = await callback.bot.send_document(chat_id=data['chat_id'],
                                      document=BufferedInputFile(file=file_bytes.read(), filename=f'{filename}.docx'),
                                      reply_markup=kb.back_from_order_download)
-    await callback.message.delete()
+    message_id = sent_message.message_id
+    await redis.rpush(f"chat:{chat_id}:messages", message_id)
+    await redis.close()
 
 
 
 # Скачать статистику в виде docx файла
 @order_downloading.callback_query(F.data == 'stats_download')
-async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
+async def stats_download_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Запрашиваем данные для всех заказов сессии и данные сессии
     data = await state.get_data()
     session_id = data['session_id']
@@ -249,7 +268,26 @@ async def stats_download_handler(callback: CallbackQuery, state: FSMContext):
     filename = re.sub(r"[^a-z0-9_]", "", filename)
     
     await callback.bot.send_chat_action(chat_id=data['chat_id'], action=ChatAction.UPLOAD_DOCUMENT)
-    await callback.bot.send_document(chat_id=data['chat_id'],
+    
+    # удаляем все id всех сообщений в чате
+    redis = bot.redis
+    chat_id = callback.message.chat.id
+    key = f"chat:{chat_id}:messages"
+    message_ids = await redis.lrange(key, 0, -1)  # Get all stored message IDs
+
+    for msg_id in message_ids:
+        try:
+            await bot.delete_message(chat_id, int(msg_id))
+        except Exception:
+            pass  # Ignore errors (e.g., message already deleted)
+
+    await redis.delete(key)  # Clear the stored list
+    await redis.close()
+    
+    # печатаем сообщение и сохраняем его id
+    sent_message = await callback.bot.send_document(chat_id=data['chat_id'],
                                      document=BufferedInputFile(file=file_bytes.read(), filename=f'{filename}.docx'),
                                      reply_markup=kb.back_from_order_download)
-    await callback.message.delete()
+    message_id = sent_message.message_id
+    await redis.rpush(f"chat:{chat_id}:messages", message_id)
+    await redis.close()
