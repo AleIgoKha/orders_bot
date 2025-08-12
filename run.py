@@ -27,6 +27,7 @@ async def main():
     load_dotenv()
     redis = await aioredis.from_url(os.getenv(f'REDIS_URL'))
     bot = Bot(token=os.getenv('TG_TOKEN'))
+    bot.redis = redis
     dp = Dispatcher(storage=RedisStorage(redis))
     dp.message.middleware(MessagesRemover())
     dp.callback_query.middleware(OutOfPagesAnswer())
