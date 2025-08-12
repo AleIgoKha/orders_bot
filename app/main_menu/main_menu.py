@@ -1,22 +1,18 @@
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Filter, Command
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.exceptions import TelegramBadRequest
+
 
 import app.main_menu.keyboard as kb
+from app.com_func import User
+
 
 main_menu = Router()
 
-admin_list = [524794800, 405514693, 450847990, 7634611527]
-
-class Admin(Filter):
-    async def __call__(self, message: Message):
-        return message.from_user.id in admin_list
-
 
 # Главное меню
-@main_menu.message(Admin(), Command('start'))
+@main_menu.message(User(), Command('start'))
 async def start_handler(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     await message.delete()
@@ -47,9 +43,3 @@ async def start_handler(message: Message, state: FSMContext, bot: Bot):
 async def main_menu_handler(callback:CallbackQuery, state: FSMContext,):
     await state.clear()
     await callback.message.edit_text(text='🏠 <b>ГЛАВНОЕ МЕНЮ</b>', reply_markup=kb.main_menu, parse_mode='HTML')
-        
-
-# # быстрое создание нового заказа
-# @main_menu.callback_query(F.data == 'main:new_order')
-# async def new_order_handler(callback:CallbackQuery, state: FSMContext,):
-    
