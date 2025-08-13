@@ -1,6 +1,7 @@
+import pytz
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from calendar import monthrange
-from datetime import date
+from datetime import date, datetime
 
 stats_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='👌🏽 По выданным заказам', callback_data='stats_menu:issued')],
@@ -50,7 +51,8 @@ def create_calendar_keyboard(callback_name, year: int, month: int) -> InlineKeyb
                 row.append(InlineKeyboardButton(text=" ", callback_data="ignore"))
             else:
                 day_text = str(day_counter)
-                if day_counter == date.today().day and month == date.today().month and year == date.today().year:
+                today = datetime.now(pytz.timezone("Europe/Chisinau"))
+                if day_counter == today.day and month == today.month and year == today.year:
                     day_text = '🌞'
                 callback_data = f"stats_menu:{callback_name}:date:{year}:{month}:{day_counter}"
                 row.append(InlineKeyboardButton(text=day_text, callback_data=callback_data))
