@@ -77,8 +77,8 @@ def choose_product(products: list, page: int = 1, products_per_page: int = 8):
 
 # меню изменения товара
 change_product_menu = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='🧀 Изменить название', callback_data='change_product_name')],
-    [InlineKeyboardButton(text='📐 Изменить единицу измерения', callback_data='change_product_unit')],
+    # [InlineKeyboardButton(text='🧀 Изменить название', callback_data='change_product_name')],
+    # [InlineKeyboardButton(text='📐 Изменить единицу измерения', callback_data='change_product_unit')],
     [InlineKeyboardButton(text='💰 Изменить стоимость', callback_data='change_product_price')],
     [InlineKeyboardButton(text='🗑 Удалить товар', callback_data='delete_product')],
     [InlineKeyboardButton(text='❌ Отмена', callback_data='products:list')]
