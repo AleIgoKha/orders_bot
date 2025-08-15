@@ -14,8 +14,8 @@ from app.states import Order
 completed_orders = Router()
 
 def order_message(order_items_data):
-    text = 'Здравствуйте!✋\nЭто Мастерская Сыра Игоря Харченко. ' \
-            f'Номер вашего заказа <b>№{order_items_data['order_number']}</b> сообщите его при получении.\n\n' \
+    text = f'Номер заказа <b>№{order_items_data['order_number']}</b>.\n\n' \
+            'Здравствуйте!✋\nЭто Мастерская Сыра Игоря Харченко.\n\n' \
             f'🧀Ваш заказ:\n'
     
     items_list = [item for item in order_items_data.keys() if item.startswith('item_')]
@@ -49,7 +49,6 @@ def order_message(order_items_data):
     delivery_price = order_items_data['delivery_price']
     
     if order_items_data['issue_method'] != 'Самовывоз':
-        print(delivery_price)
         if delivery_price == 0:
             text += '\n<b>Бесплатная доставка (более 300 руб.)</b>\n'
         elif delivery_price is None:
@@ -69,7 +68,7 @@ def order_message(order_items_data):
         text += f'\nРазмер скидки <b>{order_disc}%</b>\n'
     
     text += f'\nК оплате - <b>{int(total_price * ((100 - order_disc) / 100) + round(delivery_price))} руб.</b>\n\n' \
-            'До встречи!'
+            'Номер вашего заказа сообщите при получении.\nДо встречи!'
     
     return text
 
