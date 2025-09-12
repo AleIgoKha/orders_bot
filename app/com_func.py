@@ -1,9 +1,15 @@
 import os
 import pytz
 from datetime import datetime, timedelta
+from functools import wraps
+from contextlib import asynccontextmanager
 from aiogram.types import Message
 from aiogram.filters import Filter
 from dotenv import load_dotenv
+
+
+from app.database.models import async_session
+
 
 load_dotenv()
 
@@ -13,6 +19,35 @@ admin_list = list(map(int, (os.getenv("ADMINS").split(','))))
 class User(Filter):
     async def __call__(self, message: Message):
         return message.from_user.id in admin_list
+
+
+# session context manager
+@asynccontextmanager
+async def get_session():
+    async with async_session() as session:
+        try:
+            yield session
+        finally:
+            pass
+
+
+# decorator factory
+def with_session(commit: bool = False):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            async with get_session() as session:
+                try:
+                    result = await func(session, *args, **kwargs)
+                    if commit:
+                        await session.commit()
+                    return result
+                except Exception:
+                    if commit:
+                        await session.rollback()
+                    raise
+        return wrapper
+    return decorator
 
 
 # границы начала и конца дня

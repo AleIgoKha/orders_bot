@@ -1,33 +1,25 @@
-from app.database.models import async_session, Product, Session, Order, Item
+from app.database.models import Product, Session, Order, Item
 
 from sqlalchemy import select, update, desc, asc, func, delete, cast, Integer
 from decimal import Decimal
 from datetime import datetime
-from app.com_func import get_utc_day_bounds
+
+from app.com_func import get_utc_day_bounds, with_session
 
 
-def connection(func):
-    async def inner(*args, **kwargs):
-        async with async_session() as session:
-            return await func(session, *args, **kwargs)
-    return inner
-
-
-@connection
+@with_session(commit=True)
 async def add_product(session, product_data):
     session.add(Product(product_name=product_data['product_name'],
                         product_unit=product_data['product_unit'],
                         product_price=product_data['product_price']))
-    await session.commit()
 
 
-@connection
+@with_session(commit=True)
 async def add_session(session, session_data):
     session.add(Session(**session_data))
-    await session.commit()
 
 
-@connection
+@with_session(commit=False)
 async def add_order(session, order_data, session_id):
     await session.execute(
         select(Order.order_id)
@@ -49,7 +41,7 @@ async def add_order(session, order_data, session_id):
     return new_order.order_id
 
 
-@connection
+@with_session(commit=True)
 async def add_order_items(session, items_data):
     items = [
         Item(order_id=item_data['order_id'],
@@ -64,40 +56,39 @@ async def add_order_items(session, items_data):
         for item_data in items_data]
     
     session.add_all(items)
-    await session.commit()
 
 
-@connection
+@with_session(commit=False)
 async def get_sessions(session):
     result = await session.scalars(select(Session).order_by(asc(Session.session_name)))
     return result.all()
 
 
-@connection
+@with_session(commit=False)
 async def get_session(session, session_id):
     order_session = await session.scalar(select(Session).where(Session.session_id == session_id))
     return order_session
 
 
-@connection
+@with_session(commit=False)
 async def get_session_by_name(session, session_name):
     order_session = await session.scalar(select(Session).where(Session.session_name == session_name))
     return order_session
 
 
-@connection
+@with_session(commit=False)
 async def get_products(session):
     result = await session.scalars(select(Product).order_by(asc(Product.product_name)))
     return result.all()
 
 
-@connection
+@with_session(commit=False)
 async def get_product(session, product_id):
     product = await session.scalar(select(Product).where(Product.product_id == product_id))
     return product
 
 
-@connection
+@with_session(commit=False)
 async def get_orders_items(session, session_id):
     orders_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
                                                             .where(Order.session_id == session_id) \
@@ -107,7 +98,7 @@ async def get_orders_items(session, session_id):
     return orders_data.all()
 
 # получаем всю информацию по заказу
-@connection
+@with_session(commit=False)
 async def get_order_items(session, order_id):
     order_data = await session.execute(select(Order, Item).outerjoin(Item, Order.order_id == Item.order_id) \
                                                             .where(Order.order_id == order_id) \
@@ -118,27 +109,27 @@ async def get_order_items(session, order_id):
 
 
 # получаем только товары одного заказа
-@connection
+@with_session(commit=False)
 async def get_items(session, order_id):
     item_data = await session.scalars(select(Item).where(Item.order_id == order_id))
     
     return item_data.all()
 
 
-@connection
+@with_session(commit=False)
 async def get_item(session, item_id):
     item_data = await session.scalar(select(Item).where(Item.item_id == item_id))
     
     return item_data
 
 
-@connection
+@with_session(commit=False)
 async def get_order(session, order_id):
     order_data = await session.scalar(select(Order).where(Order.order_id == order_id))
     
     return order_data
 
-@connection
+@with_session(commit=False)
 async def get_orders(session, session_id):
     order_data = await session.scalars(select(Order).where(Order.session_id == session_id))
     
@@ -147,7 +138,7 @@ async def get_orders(session, session_id):
 
 
 # выводим выданные заказы по дате выдачи или без нее
-@connection
+@with_session(commit=False)
 async def get_orders_by_date(session, session_id, issued, date_time: datetime=None):
     if not date_time is None:
         start, end = get_utc_day_bounds(date_time)
@@ -182,7 +173,7 @@ async def get_orders_by_date(session, session_id, issued, date_time: datetime=No
 
 
 # для законченых заказов
-@connection
+@with_session(commit=False)
 async def get_orders_sorted(session, session_id):
     order_data = await session.scalars(select(Order) \
                                        .where(Order.session_id == session_id) \
@@ -192,7 +183,7 @@ async def get_orders_sorted(session, session_id):
     return order_data.all()
 
 
-@connection
+@with_session(commit=False)
 async def get_not_issued_orders_sorted(session, session_id):
     order_data = await session.scalars(select(Order) \
                                        .where(Order.session_id == session_id) \
@@ -203,40 +194,35 @@ async def get_not_issued_orders_sorted(session, session_id):
 
 
 # изменение данных сессии
-@connection
+@with_session(commit=True)
 async def change_session_data(session, session_id, session_data):
     await session.execute(update(Session).where(Session.session_id == session_id).values(session_data))
-    await session.commit()
 
 
-@connection
+@with_session(commit=True)
 async def change_item_data(session, item_id, item_data):
     await session.execute(update(Item).where(Item.item_id == item_id).values(item_data))
-    await session.commit()
 
     
 # Множественное обновление товаров, принимает два list
-@connection
+@with_session(commit=True)
 async def change_items_data(session, items_id, items_data):
     for i in range(len(items_id)):
         await session.execute(update(Item).where(Item.item_id == items_id[i]).values(items_data[i]))
-    await session.commit()
     
 
-@connection
+@with_session(commit=True)
 async def change_order_data(session, order_id, order_data):
     await session.execute(update(Order).where(Order.order_id == order_id).values(order_data))
-    await session.commit()
     
     
-@connection
+@with_session(commit=True)
 async def change_product_data(session, product_id, product_data):
     await session.execute(update(Product).where(Product.product_id == product_id).values(product_data))
-    await session.commit()
     
 
 # изменяем session_id для созданного заказа
-@connection
+@with_session(commit=True)
 async def change_order_session_id(session, order_id, old_session_id, new_session_id):
     await session.execute(
         select(Order.order_id)
@@ -251,32 +237,30 @@ async def change_order_session_id(session, order_id, old_session_id, new_session
     
     order_data = {'session_id': new_session_id, 'order_number': order_number.scalar_one()}
     await session.execute(update(Order).where(Order.order_id == order_id).values(order_data))
-    await session.commit()
-    
 
-@connection
+
+@with_session(commit=True)
 async def delete_items(session, item_ids):
     await session.execute(delete(Item).where(Item.item_id.in_(item_ids)))
-    await session.commit()
     
-@connection
+
+@with_session(commit=True)
 async def delete_order(session, order_id):
     await session.execute(delete(Order).where(Order.order_id == order_id))
-    await session.commit()
-    
-@connection
+
+
+@with_session(commit=True)
 async def delete_product(session, product_id):
     await session.execute(delete(Product).where(Product.product_id == product_id))
-    await session.commit()
+
     
-@connection
+@with_session(commit=True)
 async def delete_session(session, session_id):
     await session.execute(delete(Session).where(Session.session_id == session_id))
-    await session.commit()
 
 
 # Подсчет статистики по товарам
-@connection
+@with_session(commit=False)
 async def get_session_items_stats(session, session_id):
     stmt = (
         select(
@@ -300,7 +284,7 @@ async def get_session_items_stats(session, session_id):
 
 
 # Подсчет статистики по товарам для заказов сессии
-@connection
+@with_session(commit=False)
 async def get_session_stats(session, session_id, issued, date_time: datetime=None):
     if not date_time is None:
         start, end = get_utc_day_bounds(date_time)
@@ -345,10 +329,3 @@ async def get_session_stats(session, session_id, issued, date_time: datetime=Non
     result = await session.execute(stmt)
     
     return result.all()
-
-
-
-# @connection
-# async def drop_table(session):
-#     await session.execute(text('DROP TABLE orders'))
-#     await session.commit()
