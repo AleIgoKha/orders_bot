@@ -223,8 +223,8 @@ async def session_change_data_handler(message: Message, state: FSMContext):
                 await state.set_state(Session.delete)
                 await message.bot.edit_message_text(message_id=message_id,
                                                     chat_id=chat_id,
-                                                    text=f'❗️ <b>НЕВЕРНОЕ КЛЮЧЕВОЕ СЛОВО</b>\n\nВы пытаетесь удалить сессию - <b>{session_name}</b>. ' \
-                                                        'Для подтверждения введите слово: <i>УДАЛИТЬ</i>',
+                                                    text=f'❗️ <b>НЕВЕРНОЕ КЛЮЧЕВОЕ СЛОВО</b>\n\nВы пытаетесь удалить сессию - <b>{session_name}</b>.\n' \
+                                                        'Для подтверждения введите слово: <code>УДАЛИТЬ</code>',
                                                     reply_markup=kb.cancel_delete_session,
                                                     parse_mode='HTML')
             except TelegramBadRequest:
@@ -279,8 +279,8 @@ async def change_status_handler(callback: CallbackQuery, state: FSMContext):
 async def delete_session_handler(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     session_name = data['session_name']
-    await callback.message.edit_text(text=f'❗️ <b>ПРЕДУПРЕЖДЕНИЕ</b>\n\nВы пытаетесь удалить сессию - <b>{session_name}</b>. ' \
-                                        'Для подтверждения введите слово: <i>УДАЛИТЬ</i>',
+    await callback.message.edit_text(text=f'❗️ <b>ПРЕДУПРЕЖДЕНИЕ</b>\n\nВы пытаетесь удалить сессию - <b>{session_name}</b>.\n' \
+                                        'Для подтверждения введите слово: <code>УДАЛИТЬ</code>',
                                         reply_markup=kb.cancel_delete_session,
                                         parse_mode='HTML')
     await state.set_state(Session.delete)

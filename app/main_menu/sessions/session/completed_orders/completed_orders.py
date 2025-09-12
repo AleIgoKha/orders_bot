@@ -219,7 +219,7 @@ async def change_status_handler(callback: CallbackQuery, state: FSMContext):
     finished_datetime = localize_user_input(datetime.now(pytz.timezone("Europe/Chisinau")))
     await callback.message.edit_text(text='❓ <b>ПОДТВЕРДИТЕ ВЫДАЧУ ВСЕХ ЗАКАЗОВ</b>\n\n' \
                                             'Чтобы подтвердить выдачу ВСЕХ готовых заказов введите дату выдачи в формате <i>ДД-ММ-ГГГ</i>\n\n' \
-                                            f'Сегодня - <b>{finished_datetime.strftime('%d-%m-%Y')}</b>',
+                                            f'Сегодня - <code>{finished_datetime.strftime('%d-%m-%Y')}</code>',
                                      reply_markup=kb.issue_all,
                                      parse_mode='HTML')
     await state.set_state(Order.finished_datetime_all)
