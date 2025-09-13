@@ -65,11 +65,18 @@ def run_migrations_online() -> None:
 
     """
     
+    MY_APP_TABLES = {"products", "sessions", "orders", "items"}  # App1’s tables + common products
+
+    def include_object(object, name, type_, reflected, compare_to):
+        if type_ == "table":
+            return name in MY_APP_TABLES
+        return True
+    
     db_url = os.getenv("DB_URL_ALEMBIC")
     if db_url is None:
         raise Exception("DATABASE_URL environment variable not set!")
     
-    is_sqlite = "sqlite" in db_url
+    # is_sqlite = "sqlite" in db_url
     
     connectable = engine_from_config(
         {"sqlalchemy.url": db_url},
@@ -82,7 +89,10 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            compare_type=is_sqlite
+            version_table="alembic_version_opa",
+            include_object=include_object,
+            compare_type=True,
+            compare_server_default=True,
         )
 
         with context.begin_transaction():
